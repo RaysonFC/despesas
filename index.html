@@ -273,8 +273,8 @@ const BRANDS={
   "Itaú":{color:"#ec7000",text:"#fff",accent:"#003d7d",label:"ITAÚ"},
   "Bemol Visa":{color:"#3a5bc7",text:"#fff",accent:"#fff",label:"bemol"},
   "Renner":{color:"#cc0000",text:"#fff",accent:"#fff",label:"RENNER"},
-  "Bradesco":{color:"#cc0000",text:"#fff",accent:"#ffcc00",label:"BRAD"},
-  "Neon":{color:"#00cc99",text:"#000",accent:"#004433",label:"NEON"},
+  "Bradesco":{color:"#c0003c",text:"#fff",accent:"#7b2ff7",label:"BRAD",gradient:"linear-gradient(135deg,#c0003c,#7b2ff7)"},
+  "Neon":{color:"#00bfff",text:"#fff",accent:"#00e5ff",label:"NEON",gradient:"linear-gradient(135deg,#00bfff,#00e5c8)"},
   "C6 Bank":{color:"#2d2d2d",text:"#fff",accent:"#f5c518",label:"C6"},
   "XP":{color:"#000",text:"#fff",accent:"#ff6a00",label:"XP"},
   "Sicredi":{color:"#006600",text:"#fff",accent:"#ffdd00",label:"SICR"},
@@ -330,7 +330,8 @@ function confirm2(opts){
 function cardHTML(card,small){
   const b=BRANDS[card.brand]||BRANDS["Visa"];
   const w=small?115:280,h=small?68:158,r=small?10:18;
-  return`<div style="width:${w}px;height:${h}px;border-radius:${r}px;flex-shrink:0;background:linear-gradient(135deg,${b.color},${b.color}bb);position:relative;overflow:hidden;border:1px solid ${b.accent}33;box-shadow:0 8px 28px ${b.color}44">
+  const bg=b.gradient||`linear-gradient(135deg,${b.color},${b.color}bb)`;
+  return`<div style="width:${w}px;height:${h}px;border-radius:${r}px;flex-shrink:0;background:${bg};position:relative;overflow:hidden;border:1px solid ${b.accent}33;box-shadow:0 8px 28px ${b.color}44">
     <div style="position:absolute;top:-18px;right:-18px;width:80px;height:80px;border-radius:50%;background:${b.accent}22"></div>
     <div style="padding:${small?"8px 10px":"18px 20px"};height:100%;display:flex;flex-direction:column;justify-content:space-between;color:${b.text}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
