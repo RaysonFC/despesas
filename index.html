@@ -7,17 +7,13 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <title>Meu Orçamento</title>
 
-<!-- ══════════════════════════════════════════════════════
-     🔥 FIREBASE CONFIG — substitua pelos seus valores
-     (Configurações do projeto → Seus apps → </> → Config)
-     ══════════════════════════════════════════════════════ -->
 <script type="module">
-import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithPopup, signOut,
-         GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeApp }                               from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut,
+         onAuthStateChanged }                          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, collection,
          onSnapshot, setDoc, addDoc, updateDoc,
-         deleteDoc, getDoc, arrayUnion }          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+         deleteDoc, getDoc }                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyD-wsqjITPFeSSZ9c1itBBzUQYpyx0AGzA",
@@ -28,31 +24,60 @@ const firebaseConfig = {
   appId:             "1:485896023448:web:98908abad02c7a84928fed",
   measurementId:     "G-BGX8D7Z7KK",
 };
+
+// ── USUÁRIOS DO CASAL ─────────────────────────────────────────────────
+// Esses são os emails que você vai cadastrar no Firebase Authentication
+// (Email/senha). Os nomes e emojis aparecem no app.
+const COUPLE = {
+  "rayson@meuorcamento.app":     { name: "Rayson",    emoji: "👨" },
+  "alessandra@meuorcamento.app": { name: "Alessandra", emoji: "👩" },
+};
+// ID fixo da "casa" do casal — compartilhado entre os dois
+const HOUSE_ID = "casa-rayson-alessandra";
 // ─────────────────────────────────────────────────────────────────────
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
-const provider = new GoogleAuthProvider();
 
-let houseId = null;
-let unsubs  = []; // listeners para cancelar ao sair
+let unsubs = [];
+let currentUserInfo = null; // { name, emoji, email, uid }
 
-// ── LOGIN / LOGOUT ────────────────────────────────────────────────────
-window.loginGoogle = async () => {
+// ── LOGIN ─────────────────────────────────────────────────────────────
+window.doLogin = async () => {
+  const user = document.getElementById("login-user").value.trim();
+  const pass = document.getElementById("login-pass").value;
+  if (!user || !pass) { showLoginError("Preencha usuário e senha!"); return; }
+
+  // Mapeia "Rayson" → email real
+  const emailMap = {
+    "rayson":     "rayson@meuorcamento.app",
+    "alessandra": "alessandra@meuorcamento.app",
+  };
+  const email = emailMap[user.toLowerCase()] || user;
+
+  showLoginLoading(true);
   try {
-    showLoginLoading(true);
-    await signInWithPopup(auth, provider);
+    await signInWithEmailAndPassword(auth, email, pass);
   } catch(e) {
     showLoginLoading(false);
-    showLoginError("Erro ao entrar: " + e.message);
+    const msgs = {
+      "auth/invalid-credential": "Usuário ou senha incorretos.",
+      "auth/user-not-found":     "Usuário não encontrado.",
+      "auth/wrong-password":     "Senha incorreta.",
+      "auth/too-many-requests":  "Muitas tentativas. Tente mais tarde.",
+    };
+    showLoginError(msgs[e.code] || "Erro: " + e.message);
   }
 };
+
+// Permite Enter no campo de senha
+window.loginKeydown = (e) => { if (e.key === "Enter") doLogin(); };
 
 window.doLogout = async () => {
   unsubs.forEach(u => u());
   unsubs = [];
-  houseId = null;
+  currentUserInfo = null;
   await signOut(auth);
   showLoginScreen();
 };
@@ -60,121 +85,81 @@ window.doLogout = async () => {
 // ── AUTH STATE ────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
   if (!user) { showLoginScreen(); return; }
-  showLoadingScreen(user);
+
+  const info = COUPLE[user.email];
+  currentUserInfo = {
+    uid:   user.uid,
+    email: user.email,
+    name:  info?.name  || user.email,
+    emoji: info?.emoji || "👤",
+  };
+  window._currentUser = currentUserInfo;
+
+  showLoadingScreen(currentUserInfo.name);
 
   try {
-    const joinId = new URLSearchParams(location.search).get("join");
-    if (joinId && joinId.length > 5) {
-      await handleJoinInvite(user, joinId);
-      window.history.replaceState({}, "", location.pathname);
-    }
-
-    const userRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
-
-    if (userSnap.exists() && userSnap.data().houseId) {
-      houseId = userSnap.data().houseId;
-    } else {
-      const houseRef = await addDoc(collection(db, "houses"), {
-        members: [user.uid],
-        memberNames: { [user.uid]: user.displayName || user.email },
-        salary: 0, extra: 0, theme: "dark",
+    // Garante que o doc da casa existe
+    const houseRef = doc(db, "houses", HOUSE_ID);
+    const houseSnap = await getDoc(houseRef);
+    if (!houseSnap.exists()) {
+      await setDoc(houseRef, {
+        salary: 0, extra: 0,
+        themes: {},       // tema por usuário: { uid: "dark" }
         createdAt: new Date().toISOString(),
-        createdBy: user.uid,
-      });
-      houseId = houseRef.id;
-      await setDoc(userRef, {
-        houseId,
-        name: user.displayName || user.email,
-        email: user.email,
-        photoURL: user.photoURL || "",
       });
     }
 
-    try {
-      await updateDoc(doc(db, "users", user.uid), {
-        name: user.displayName || user.email,
-        photoURL: user.photoURL || "",
-      });
-    } catch(_) {}
+    // Salva tema pessoal do usuário no Firestore (se não existir ainda)
+    const houseData = (await getDoc(houseRef)).data();
+    const myTheme = houseData?.themes?.[user.uid] || "dark";
+    S.theme = myTheme;
 
     startListeners(user);
-    updateUserBadge(user);
 
   } catch(e) {
     document.getElementById("loading-msg").textContent = "❌ Erro: " + e.message;
     document.getElementById("loading-msg").style.color = "#ff4d6d";
     const btn = document.createElement("button");
-    btn.textContent = "Tentar novamente";
+    btn.textContent = "Sair e tentar novamente";
     btn.style.cssText = "margin-top:20px;padding:12px 24px;background:#00e5a0;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;color:#000";
     btn.onclick = () => doLogout();
     document.getElementById("loading-screen").appendChild(btn);
   }
 });
 
-async function handleJoinInvite(user, joinId) {
-  try {
-    const houseSnap = await getDoc(doc(db, "houses", joinId));
-    if (!houseSnap.exists()) { showLoginError("Convite inválido ou expirado."); return; }
-    // Adiciona usuário na casa
-    await updateDoc(doc(db, "houses", joinId), {
-      members: arrayUnion(user.uid),
-      [`memberNames.${user.uid}`]: user.displayName || user.email,
-    });
-    // Salva referência
-    await setDoc(doc(db, "users", user.uid), {
-      houseId: joinId,
-      name: user.displayName || user.email,
-      email: user.email,
-      photoURL: user.photoURL || "",
-    });
-    houseId = joinId;
-    toast("👫 Você entrou na casa! Dados sincronizados.");
-  } catch(e) {
-    showLoginError("Erro ao aceitar convite: " + e.message);
-  }
-}
-
-// ── LISTENERS FIRESTORE (tempo real) ─────────────────────────────────
+// ── LISTENERS FIRESTORE ───────────────────────────────────────────────
 function startListeners(user) {
-  // Cancela listeners antigos
   unsubs.forEach(u => u());
   unsubs = [];
 
-  // Casa (salary, extra, theme)
-  unsubs.push(onSnapshot(doc(db, "houses", houseId), snap => {
+  // Casa (salary, extra, themes por usuário)
+  unsubs.push(onSnapshot(doc(db, "houses", HOUSE_ID), snap => {
     if (!snap.exists()) return;
     const d = snap.data();
     S.salary = d.salary || 0;
     S.extra  = d.extra  || 0;
-    if (d.theme && d.theme !== S.theme) {
-      S.theme = d.theme;
+    // Tema pessoal: só aplica o tema DO usuário atual
+    const myTheme = d.themes?.[user.uid];
+    if (myTheme && myTheme !== S.theme) {
+      S.theme = myTheme;
     }
-    // Atualiza membros
-    window._houseMembers = d.memberNames || {};
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
 
-  // Gastos
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "expenses"), snap => {
+  // Gastos, cartões, parcelamentos, metas — todos compartilhados
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "expenses"), snap => {
     S.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-
-  // Cartões
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "cards"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "cards"), snap => {
     S.cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-
-  // Parcelamentos
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "installments"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "installments"), snap => {
     S.installments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-
-  // Metas
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "goals"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "goals"), snap => {
     S.goals = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
@@ -182,76 +167,58 @@ function startListeners(user) {
   showAppScreen();
 }
 
-// ── FUNÇÕES FIREBASE (substituem persist/ld) ──────────────────────────
-
-// Salva config da casa (salary, extra, theme)
+// ── FIREBASE HELPERS ──────────────────────────────────────────────────
+// Salva salary/extra na casa (compartilhado)
 window.fbSaveHouse = async (data) => {
-  if (!houseId) return;
-  await updateDoc(doc(db, "houses", houseId), data);
+  await updateDoc(doc(db, "houses", HOUSE_ID), data);
 };
 
-// Add documento em subcoleção
+// Salva tema PESSOAL (só afeta o usuário atual)
+window.fbSaveTheme = async (themeKey) => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+  await updateDoc(doc(db, "houses", HOUSE_ID), {
+    [`themes.${uid}`]: themeKey,
+  });
+};
+
 window.fbAdd = async (col, data) => {
-  if (!houseId) return null;
-  const ref = await addDoc(collection(db, "houses", houseId, col), {
+  const ref = await addDoc(collection(db, "houses", HOUSE_ID, col), {
     ...data,
     _createdAt: new Date().toISOString(),
     _createdBy: auth.currentUser?.uid || "",
+    _createdByName: window._currentUser?.name || "",
   });
   return ref.id;
 };
 
-// Update documento em subcoleção
 window.fbUpdate = async (col, id, data) => {
-  if (!houseId) return;
-  await updateDoc(doc(db, "houses", houseId, col, id), data);
+  await updateDoc(doc(db, "houses", HOUSE_ID, col, id), data);
 };
 
-// Delete documento
 window.fbDel = async (col, id) => {
-  if (!houseId) return;
-  await deleteDoc(doc(db, "houses", houseId, col, id));
+  await deleteDoc(doc(db, "houses", HOUSE_ID, col, id));
 };
 
-// ── CONVITE ────────────────────────────────────────────────────────────
-window.copyInviteLink = async () => {
-  if (!houseId) return;
-  const link = `${location.origin}${location.pathname}?join=${houseId}`;
-  try {
-    await navigator.clipboard.writeText(link);
-    toast("🔗 Link copiado! Mande para sua esposa.");
-  } catch {
-    prompt("Copie este link e mande para sua esposa:", link);
-  }
-};
-
-function updateUserBadge(user) {
-  const el = document.getElementById("user-badge");
-  if (!el) return;
-  const t = T();
-  el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
-      ${user.photoURL ? `<img src="${user.photoURL}" style="width:28px;height:28px;border-radius:50%;object-fit:cover">` : `<div style="width:28px;height:28px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#000">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`}
-      <div style="min-width:0;flex:1">
-        <p style="font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${user.displayName || user.email}</p>
-        <p style="font-size:10px;color:${t.muted}">● Online</p>
-      </div>
-      <button onclick="doLogout()" title="Sair" style="background:none;border:none;color:${t.muted};font-size:16px;padding:2px 4px">↩</button>
-    </div>`;
-}
-
+// ── TELA HELPERS ──────────────────────────────────────────────────────
 function showLoginScreen() {
   document.getElementById("login-screen").style.display = "flex";
   document.getElementById("loading-screen").style.display = "none";
   document.getElementById("layout").style.display = "none";
   document.getElementById("bottom-nav").style.display = "none";
+  // Limpa campos
+  const u = document.getElementById("login-user");
+  const p = document.getElementById("login-pass");
+  if (u) u.value = "";
+  if (p) p.value = "";
+  document.getElementById("login-error").style.display = "none";
 }
-function showLoadingScreen(user) {
+function showLoadingScreen(name) {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("loading-screen").style.display = "flex";
   document.getElementById("layout").style.display = "none";
   document.getElementById("bottom-nav").style.display = "none";
-  document.getElementById("loading-msg").textContent = `Carregando dados de ${user.displayName || user.email}...`;
+  document.getElementById("loading-msg").textContent = `Carregando dados de ${name}...`;
 }
 function showAppScreen() {
   document.getElementById("login-screen").style.display = "none";
@@ -260,14 +227,29 @@ function showAppScreen() {
   checkLayout();
   renderAll();
   setTab("home");
+  updateUserBadge();
 }
 function showLoginLoading(v) {
   const btn = document.getElementById("login-btn");
-  if (btn) btn.textContent = v ? "Entrando..." : "Entrar com Google";
+  if (btn) { btn.textContent = v ? "Entrando..." : "Entrar"; btn.disabled = v; }
 }
 function showLoginError(msg) {
   const el = document.getElementById("login-error");
   if (el) { el.textContent = msg; el.style.display = "block"; }
+}
+
+function updateUserBadge() {
+  const el = document.getElementById("user-badge");
+  if (!el || !currentUserInfo) return;
+  const t = T();
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
+    <div style="width:32px;height:32px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${currentUserInfo.emoji}</div>
+    <div style="min-width:0;flex:1">
+      <p style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${currentUserInfo.name}</p>
+      <p style="font-size:10px;color:${t.muted}">● Online</p>
+    </div>
+    <button onclick="doLogout()" title="Sair" style="background:none;border:none;color:${t.muted};font-size:18px;padding:2px 6px" title="Sair">↩</button>
+  </div>`;
 }
 </script>
 
@@ -342,16 +324,29 @@ input,select{font-family:inherit;}
 
 <!-- ══ LOGIN SCREEN ══════════════════════════════════════════════════ -->
 <div id="login-screen">
-  <div style="text-align:center;max-width:380px;width:100%">
+  <div style="text-align:center;max-width:360px;width:100%">
     <p style="font-size:56px;margin-bottom:8px">💰</p>
-    <h1 style="font-size:28px;font-weight:800;color:#e8e8f4;margin-bottom:8px">Meu Orçamento</h1>
-    <p style="font-size:14px;color:#5a5a72;margin-bottom:32px;line-height:1.6">Controle financeiro do casal<br>em tempo real 👫</p>
-    <button id="login-btn" onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:16px;background:#fff;border:none;border-radius:16px;font-size:15px;font-weight:700;color:#1a1a2e;cursor:pointer">
-      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-      <span id="login-btn-text">Entrar com Google</span>
-    </button>
-    <p id="login-error" style="display:none;color:#ff4d6d;font-size:12px;margin-top:16px;background:#ff4d6d18;padding:10px;border-radius:10px"></p>
-    <p style="font-size:11px;color:#5a5a72;margin-top:24px">Seus dados ficam seguros no Firebase.<br>Compartilhe com sua esposa via convite.</p>
+    <h1 style="font-size:28px;font-weight:800;color:#e8e8f4;margin-bottom:6px">Meu Orçamento</h1>
+    <p style="font-size:14px;color:#5a5a72;margin-bottom:32px">Controle financeiro do casal 👫</p>
+
+    <div style="background:#10101c;border:1px solid #22223a;border-radius:20px;padding:28px;text-align:left">
+      <p style="font-size:11px;letter-spacing:1.5px;color:#5a5a72;font-weight:700;margin-bottom:8px">USUÁRIO</p>
+      <input id="login-user" type="text" placeholder="Rayson ou Alessandra"
+        style="width:100%;background:#1c1c2e;border:1px solid #22223a;border-radius:12px;padding:13px 16px;font-size:15px;color:#e8e8f4;outline:none;margin-bottom:14px"
+        onkeydown="loginKeydown(event)" autocomplete="username" autocapitalize="none"/>
+
+      <p style="font-size:11px;letter-spacing:1.5px;color:#5a5a72;font-weight:700;margin-bottom:8px">SENHA</p>
+      <input id="login-pass" type="password" placeholder="••••••••"
+        style="width:100%;background:#1c1c2e;border:1px solid #22223a;border-radius:12px;padding:13px 16px;font-size:15px;color:#e8e8f4;outline:none;margin-bottom:20px"
+        onkeydown="loginKeydown(event)" autocomplete="current-password"/>
+
+      <button id="login-btn" onclick="doLogin()"
+        style="width:100%;padding:15px;background:#00e5a0;border:none;border-radius:14px;font-size:16px;font-weight:800;color:#000;cursor:pointer">
+        Entrar
+      </button>
+    </div>
+
+    <p id="login-error" style="display:none;color:#ff4d6d;font-size:13px;margin-top:16px;background:#ff4d6d18;padding:12px;border-radius:12px;text-align:center"></p>
   </div>
 </div>
 
@@ -375,7 +370,6 @@ input,select{font-family:inherit;}
     <button class="side-btn"        id="side-health" onclick="setTab('health')"><span class="icon">📊</span>Saúde</button>
     <div id="sidebar-bottom">
       <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
-      <button onclick="copyInviteLink()" class="side-btn"><span class="icon">👫</span>Convidar Esposa</button>
       <div id="salary-sidebar"></div>
       <div id="user-badge"></div>
     </div>
@@ -389,7 +383,6 @@ input,select{font-family:inherit;}
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
         <button onclick="openThemes()"      id="theme-btn-top"  class="btn-sm" style="display:none">🌙 Tema</button>
-        <button onclick="copyInviteLink()"  id="invite-btn-top" class="btn-sm" style="display:none">👫</button>
         <div id="sync-indicator" style="font-size:11px;display:flex;align-items:center;gap:4px;opacity:.6"><span id="sync-dot"></span><span id="sync-txt">Sincronizado</span></div>
         <div id="salary-topbar"></div>
       </div>
@@ -636,7 +629,7 @@ function applyTheme(){
   const sb=document.getElementById("sidebar");if(sb)sb.style.cssText=`background:${t.sidebar};border-color:${t.border}`;
   const bn=document.getElementById("bottom-nav");if(bn)bn.style.cssText=`background:${t.navBg};border-top-color:${t.border}`;
   const ti=document.getElementById("theme-icon-side");if(ti)ti.textContent=t.icon;
-  ["theme-btn-top","invite-btn-top"].forEach(id=>{const b=document.getElementById(id);if(b){b.style.background=t.cardLight;b.style.border=`1px solid ${t.border}`;b.style.color=t.muted;}});
+  const themeTopBtn=document.getElementById("theme-btn-top");if(themeTopBtn){themeTopBtn.style.background=t.cardLight;themeTopBtn.style.border=`1px solid ${t.border}`;themeTopBtn.style.color=t.muted;}
   const tb=document.getElementById("theme-btn-top");if(tb)tb.textContent=t.icon+" Tema";
   let st=document.getElementById("dyn-style")||document.createElement("style");st.id="dyn-style";
   st.textContent=`::-webkit-scrollbar-thumb{background:${t.border};}.crd{background:${t.card};border-color:${t.border};}.inp{background:${t.cardLight};border-color:${t.border};color:${t.text};}.inp:focus{border-color:${t.accent};}.inp.error{border-color:${t.danger}!important;}.chip{background:${t.cardLight};border-color:${t.border};color:${t.muted};}.chip.active{background:${t.accent}18;border-color:${t.accent};color:${t.accent};}.side-btn{color:${t.muted};}.side-btn:hover{background:${t.accent}12;color:${t.accent};}.side-btn.active{background:${t.accent}18;color:${t.accent};}.tab-btn{color:${t.muted};}.tab-btn.active{color:${t.accent};}.row{border-color:${t.border}44;}.btn-sm{background:${t.cardLight};border:1px solid ${t.border};color:${t.muted};}.btn-p{background:${t.accent};color:${light?"#fff":"#000"};}.modal-box{background:${t.card};border-color:${t.border};}.sec{color:${t.muted};}.prog-bg{background:${t.cardLight};}#login-screen{background:${t.bg};}`;
@@ -863,7 +856,7 @@ function openThemes(){
   document.getElementById("theme-list").innerHTML=Object.entries(THEMES).map(([key,th])=>{const a=key===S.theme;return`<button onclick="setTheme('${key}')" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;width:100%;border:1px solid ${a?t.accent:t.border};background:${a?t.accent+"18":t.cardLight};cursor:pointer;margin-bottom:8px;text-align:left"><div style="display:flex;gap:4px;flex-shrink:0"><div style="width:22px;height:22px;border-radius:50%;background:${th.bg};border:2px solid ${th.border}"></div><div style="width:22px;height:22px;border-radius:50%;background:${th.card};border:2px solid ${th.border}"></div><div style="width:22px;height:22px;border-radius:50%;background:${th.accent}"></div></div><span style="font-size:22px">${th.icon}</span><span style="font-size:14px;font-weight:700;color:${a?t.accent:t.text};flex:1">${th.name}</span>${a?`<span style="font-size:12px;color:${t.accent};font-weight:700">✓ Ativo</span>`:""}</button>`;}).join("");
   openModal("modal-themes");
 }
-function setTheme(key){S.theme=key;window.fbSaveHouse({theme:key});closeModal("modal-themes");renderAll();}
+function setTheme(key){S.theme=key;window.fbSaveTheme(key);closeModal("modal-themes");renderAll();}
 
 function openSalaryModal(){document.getElementById("salary-input").value=S.salary||"";document.getElementById("extra-input").value=S.extra||"";updateIncomePreview();openModal("modal-salary");}
 function updateIncomePreview(){const s=parseFloat(document.getElementById("salary-input").value)||0,e=parseFloat(document.getElementById("extra-input").value)||0;document.getElementById("total-income-preview").textContent="Total em conta: "+fmt(s+e);}
@@ -976,8 +969,7 @@ function depositGoal(id){
 // ── LAYOUT ────────────────────────────────────────────────────────────
 function checkLayout(){
   const mob=window.innerWidth<768;
-  document.getElementById("theme-btn-top").style.display=mob?"flex":"none";
-  document.getElementById("invite-btn-top").style.display=mob?"flex":"none";
+  const tb=document.getElementById("theme-btn-top");if(tb)tb.style.display=mob?"flex":"none";
 }
 window.addEventListener("resize",()=>{checkLayout();renderAll();});
 
