@@ -309,17 +309,28 @@ function showLoginError(msg) {
 }
 
 function updateUserBadge() {
-  const el = document.getElementById("user-badge");
-  if (!el || !currentUserInfo) return;
+  if (!currentUserInfo) return;
   const t = T();
-  el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
+  const badgeHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
     <div style="width:32px;height:32px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${currentUserInfo.emoji}</div>
     <div style="min-width:0;flex:1">
       <p style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${currentUserInfo.name}</p>
       <p style="font-size:10px;color:${t.muted}">● Online</p>
     </div>
-    <button onclick="doLogout()" title="Sair" style="background:none;border:none;color:${t.muted};font-size:18px;padding:2px 6px" title="Sair">↩</button>
+    <button onclick="doLogout()" title="Sair" style="background:none;border:none;color:${t.muted};font-size:18px;padding:2px 6px">↩</button>
   </div>`;
+  const el = document.getElementById("user-badge");
+  if (el) el.innerHTML = badgeHTML;
+  // Topbar user (mobile)
+  const tb = document.getElementById("topbar-user");
+  if (tb) {
+    tb.style.display = "flex";
+    tb.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:12px;border:1px solid ${t.border};background:${t.cardLight}">
+      <span style="font-size:16px">${currentUserInfo.emoji}</span>
+      <span style="font-size:13px;font-weight:700">${currentUserInfo.name}</span>
+      <button onclick="doLogout()" style="background:none;border:none;color:${t.muted};font-size:15px;padding:0 0 0 4px;cursor:pointer" title="Sair">↩</button>
+    </div>`;
+  }
 }
 </script>
 
@@ -334,6 +345,8 @@ input,select{font-family:inherit;}
 @keyframes slideUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 @keyframes shake{0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-5px);}40%,80%{transform:translateX(5px);}}
 @keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 #ff4d6d55;}50%{box-shadow:0 0 0 8px #ff4d6d00;}}
+.overdue-pulse{animation:pulse-red 1.6s ease-in-out infinite;border-color:#ff4d6d!important;}
 .dust-out{animation:dustAway .55s ease-out forwards;pointer-events:none;}
 .slide-up{animation:slideUp .22s ease-out forwards;}
 .shake{animation:shake .3s ease-out;}
@@ -502,13 +515,16 @@ input,select{font-family:inherit;}
 
   <div id="main">
     <div id="topbar">
-      <div>
-        <p class="sub">Controle Financeiro</p>
-        <h1 id="topbar-title">Início</h1>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div>
+          <p class="sub">Controle Financeiro</p>
+          <h1 id="topbar-title">Início</h1>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-        <button onclick="openThemes()"      id="theme-btn-top"  class="btn-sm" style="display:none">🌙 Tema</button>
+        <button onclick="openThemes()" id="theme-btn-top" class="btn-sm" style="display:none">🌙 Tema</button>
         <div id="sync-indicator" style="font-size:11px;display:flex;align-items:center;gap:4px;opacity:.6"><span id="sync-dot"></span><span id="sync-txt">Sincronizado</span></div>
+        <div id="topbar-user" style="display:none;align-items:center;gap:8px"></div>
         <div id="salary-topbar"></div>
       </div>
     </div>
@@ -582,7 +598,10 @@ input,select{font-family:inherit;}
       <p id="inst-preview-val" style="font-size:28px;font-weight:800"></p>
     </div>
     <p class="sec">MÊS DE INÍCIO</p>
-    <input class="inp" type="month" id="inst-month" style="margin-bottom:16px"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <input class="inp" type="month" id="inst-month"/>
+      <input class="inp" type="number" id="inst-due" placeholder="Dia vencimento (ex: 10)" min="1" max="31"/>
+    </div>
     <button class="btn-p" onclick="saveInst()">Adicionar Parcelamento</button>
   </div>
 </div>
@@ -629,7 +648,10 @@ input,select{font-family:inherit;}
     <input class="inp" type="number" id="edit-inst-n" placeholder="Total de parcelas" style="margin-bottom:10px"/>
     <input class="inp" type="number" id="edit-inst-paid" placeholder="Parcelas já pagas" style="margin-bottom:10px"/>
     <p class="sec">MÊS DE INÍCIO</p>
-    <input class="inp" type="month" id="edit-inst-month" style="margin-bottom:16px"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <input class="inp" type="month" id="edit-inst-month"/>
+      <input class="inp" type="number" id="edit-inst-due" placeholder="Dia vencimento" min="1" max="31"/>
+    </div>
     <button class="btn-p" onclick="saveEditInst()">Salvar Alterações</button>
   </div>
 </div>
@@ -761,18 +783,12 @@ function applyTheme(){
   document.head.appendChild(st);
   // Atualiza sync dot color
   const sd=document.getElementById("sync-dot");if(sd)sd.style.background=t.accent;
-  // Atualiza user badge
-  if(window._auth?.currentUser) updateUserBadge(window._auth.currentUser);
 }
 
 function renderAll(){
   applyTheme();
   renderSalarySidebar();renderSalaryTopbar();renderStatus();renderTab(S.currentTab);
-  // Re-atualiza user badge com tema correto
-  if(document.getElementById("user-badge")?.innerHTML) {
-    const auth = window._auth;
-    if(auth?.currentUser) updateUserBadge(auth.currentUser);
-  }
+  updateUserBadge();
 }
 
 function renderSalarySidebar(){
@@ -788,16 +804,32 @@ function renderSalaryTopbar(){
 
 // ── STATUS ────────────────────────────────────────────────────────────
 function renderStatus(){
-  const t=T(),fm=S.filterMonth;
-  const filtExp=fm?S.expenses.filter(e=>e.date?.startsWith(fm)):S.expenses;
-  const iT=S.installments.reduce((s,i)=>s+i.installmentValue,0);
-  const eT=filtExp.reduce((s,e)=>s+e.amount,0);
+  const t=T(),cm=curM();
+  // Sempre usa o mês atual para o status (ignora filtro aqui)
+  const thisMonthExp=S.expenses.filter(e=>e.date?.startsWith(cm));
+  // Parcelas: só conta as do mês atual (startMonth <= curM e não quitadas)
+  const thisMonthInst=S.installments.filter(i=>{
+    if(i.paidInstallments>=i.installments)return false;
+    if(!i.startMonth)return true;
+    return i.startMonth<=cm;
+  });
+  const iT=thisMonthInst.reduce((s,i)=>s+i.installmentValue,0);
+  const eT=thisMonthExp.reduce((s,e)=>s+e.amount,0);
   const totalIncome=S.salary+S.extra,tot=eT+iT,rem=totalIncome-tot;
   const pct=Math.min((tot/(totalIncome||1))*100,100);
-  const h=pct<50?{e:"😊",l:"Ótimo!",c:t.accent}:pct<75?{e:"😐",l:"Atenção",c:t.warn}:{e:"😰",l:"Crítico",c:t.danger};
-  const mlabel=fm?`<span style="font-size:11px;font-weight:700;color:${t.blue};margin-left:8px">📅 ${fmtMonth(fm)}</span>`:"";
+  const h=pct<50?{l:"Ótimo!",c:t.accent}:pct<75?{l:"Atenção",c:t.warn}:{l:"Crítico",c:t.danger};
   const sc=document.getElementById("status-card");if(!sc)return;
-  sc.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:16px"><div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Total Comprometido${mlabel}</p><p style="font-size:26px;font-weight:800;color:${t.danger}">${fmt(tot)}</p><p style="font-size:11px;color:${t.muted};margin-top:4px"><span style="color:${t.warn}">Parcelas: ${fmt(iT)}</span> &nbsp;·&nbsp; <span style="color:${t.blue}">Avulsos: ${fmt(eT)}</span></p></div><div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Disponível Livre</p><p style="font-size:26px;font-weight:800;color:${rem>=0?t.accent:t.danger}">${fmt(rem)}</p></div><div style="display:flex;flex-direction:column;justify-content:center;gap:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:${t.muted}">${pct.toFixed(1)}% do salário</span><span style="font-weight:700;color:${h.c}">${h.e} ${h.l}</span></div><div class="prog-bg" style="height:10px"><div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,${t.accent},${pct>75?t.danger:t.warn})"></div></div></div></div>`;
+  sc.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px">
+    <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Total Comprometido <span style="color:${t.blue}">${fmtMonth(cm)}</span></p><p style="font-size:28px;font-weight:800;color:${t.danger}">${fmt(tot)}</p><p style="font-size:11px;color:${t.muted};margin-top:4px"><span style="color:${t.warn}">Parcelas: ${fmt(iT)}</span> &nbsp;·&nbsp; <span style="color:${t.blue}">Avulsos: ${fmt(eT)}</span></p></div>
+    <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Disponível Livre</p><p style="font-size:28px;font-weight:800;color:${rem>=0?t.accent:t.danger}">${fmt(rem)}</p></div>
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:${t.muted}">${pct.toFixed(1)}% do salário</span><span style="font-weight:800;color:${h.c}">${h.l}</span></div>
+      <div class="prog-bg" style="height:18px;border-radius:99px">
+        <div class="prog-fill" style="height:18px;width:${pct}%;background:linear-gradient(90deg,${t.accent},${pct>75?t.danger:t.warn});border-radius:99px;transition:width .6s"></div>
+      </div>
+      <p style="font-size:10px;color:${t.muted};text-align:right">${fmt(tot)} de ${fmt(totalIncome)}</p>
+    </div>
+  </div>`;
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────
@@ -840,13 +872,41 @@ function renderHome(){
   });
   daysH+=`</div>`;
 
+  // Parcelas do mês atual
+  const cm=curM();
+  const thisMonthInst=active.filter(i=>!i.startMonth||i.startMonth<=cm);
+  const futureInst=active.filter(i=>i.startMonth&&i.startMonth>cm);
+  const thisMonthInstTotal=thisMonthInst.reduce((s,i)=>s+i.installmentValue,0);
+
   let instH="";
-  if(active.length){
-    instH=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><p class="sec" style="margin-bottom:0">Parcelas do Mês</p><span style="font-size:14px;font-weight:700;color:${t.warn}">${fmt(iT)}</span></div><div class="scroll-x" style="margin-bottom:28px">`;
-    active.forEach(i=>{
+  if(thisMonthInst.length||futureInst.length){
+    instH=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><p class="sec" style="margin-bottom:0">Parcelas do Mês</p><span style="font-size:14px;font-weight:700;color:${t.warn}">${fmt(thisMonthInstTotal)}</span></div><div class="scroll-x" style="margin-bottom:28px">`;
+    thisMonthInst.forEach(i=>{
       const card=S.cards.find(c=>c.id==i.cardId),prog=(i.paidInstallments/i.installments)*100;
-      instH+=`<div id="inst-h-${i.id}" style="min-width:200px;scroll-snap-align:start;flex-shrink:0;background:${t.card};border:1px solid ${t.border};border-radius:18px;padding:18px">${card?`<div style="margin-bottom:12px">${cardHTML(card,true)}</div>`:""}<p style="font-size:14px;font-weight:700;margin-bottom:4px">${i.desc}</p><p style="font-size:20px;font-weight:800;color:${t.warn}">${fmt(i.installmentValue)}<span style="font-size:12px;color:${t.muted}">/mês</span></p><p style="font-size:10px;color:${t.muted};margin:6px 0 10px">${i.paidInstallments}/${i.installments} pagas · ${fmt((i.installments-i.paidInstallments)*i.installmentValue)} restante</p><div class="prog-bg" style="height:4px;margin-bottom:12px"><div class="prog-fill" style="width:${prog}%;background:${t.accent}"></div></div><button onclick="payInst('${i.id}','h')" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:8px;color:${t.accent};font-size:11px;font-weight:700;width:100%">✓ Marcar parcela paga</button></div>`;
+      // Verifica se está atrasada: tem dueDay e já passou do dia de vencimento esse mês
+      const dueDay=i.dueDay||0;
+      const todayDay=new Date().getDate();
+      const overdue=dueDay>0&&todayDay>dueDay;
+      instH+=`<div id="inst-h-${i.id}" class="${overdue?"overdue-pulse":""}" style="min-width:200px;scroll-snap-align:start;flex-shrink:0;background:${t.card};border:1px solid ${overdue?t.danger:t.border};border-radius:18px;padding:18px">
+        ${card?`<div style="margin-bottom:12px">${cardHTML(card,true)}</div>`:""}
+        <p style="font-size:14px;font-weight:700;margin-bottom:4px">${i.desc}${overdue?` <span style="font-size:10px;background:${t.danger}22;color:${t.danger};padding:2px 6px;border-radius:6px;font-weight:700">ATRASADA</span>`:""}</p>
+        <p style="font-size:20px;font-weight:800;color:${overdue?t.danger:t.warn}">${fmt(i.installmentValue)}<span style="font-size:12px;color:${t.muted}">/mês</span></p>
+        ${dueDay?`<p style="font-size:10px;color:${overdue?t.danger:t.muted};margin-top:4px">Vence dia ${dueDay}</p>`:""}
+        <p style="font-size:10px;color:${t.muted};margin:6px 0 10px">${i.paidInstallments}/${i.installments} pagas · ${fmt((i.installments-i.paidInstallments)*i.installmentValue)} restante</p>
+        <div class="prog-bg" style="height:4px;margin-bottom:12px"><div class="prog-fill" style="width:${prog}%;background:${overdue?t.danger:t.accent}"></div></div>
+        <button onclick="payInst('${i.id}','h')" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:8px;color:${t.accent};font-size:11px;font-weight:700;width:100%">✓ Marcar parcela paga</button>
+      </div>`;
     });
+    // Parcelas futuras (próximo mês+)
+    if(futureInst.length){
+      futureInst.forEach(i=>{
+        instH+=`<div style="min-width:180px;scroll-snap-align:start;flex-shrink:0;background:${t.cardLight};border:1px solid ${t.border}66;border-radius:18px;padding:18px;opacity:.6">
+          <p style="font-size:10px;color:${t.blue};font-weight:700;margin-bottom:8px">📅 A PARTIR DE ${fmtMonth(i.startMonth).toUpperCase()}</p>
+          <p style="font-size:14px;font-weight:700;margin-bottom:4px">${i.desc}</p>
+          <p style="font-size:18px;font-weight:800;color:${t.muted}">${fmt(i.installmentValue)}<span style="font-size:11px">/mês</span></p>
+        </div>`;
+      });
+    }
     instH+=`</div>`;
   }
 
@@ -951,7 +1011,7 @@ function renderHealth(){
   const sortedM=Object.entries(mTotals).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6).reverse();
   const maxV=Math.max(...sortedM.map(x=>x[1]),1);
   let chartH="";if(sortedM.length>1){chartH=`<p class="sec">Gastos por Mês</p><div class="crd" style="padding:20px;margin-bottom:20px"><div style="display:flex;align-items:flex-end;gap:8px;height:100px">${sortedM.map(([m,v])=>{const hh=Math.max((v/maxV)*80,4),act=fm===m;return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer" onclick="setFilter('${m}')"><span style="font-size:9px;color:${t.muted};font-weight:600;text-align:center">${fmt(v).replace("R$","").trim()}</span><div style="width:100%;border-radius:6px 6px 0 0;background:${act?t.accent:t.blue}${act?"":"88"};height:${hh}px"></div><span style="font-size:9px;color:${act?t.accent:t.muted};font-weight:700">${m.slice(5)}</span></div>`;}).join("")}</div>${fm?`<div style="text-align:center;margin-top:10px"><button onclick="setFilter('')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:5px 14px;color:${t.muted};font-size:12px">✕ Limpar filtro</button></div>`:""}</div>`;}
-  document.getElementById("tab-health").innerHTML=`<div class="grid-2" style="align-items:start"><div><div class="crd" style="text-align:center;padding:32px;margin-bottom:16px;border-color:${h.c}44"><p style="font-size:64px;margin-bottom:10px">${h.e}</p><p style="font-size:28px;font-weight:800;color:${h.c}">${h.l}</p><p style="color:${t.muted};font-size:13px;margin-top:10px;line-height:1.6">${h.m}</p></div>${[{l:"Salário",v:fmt(S.salary),c:t.accent},{l:"Extra (Caixa)",v:fmt(S.extra),c:t.blue},{l:"Total em Conta",v:fmt(S.salary+S.extra),c:t.accent},{l:"Gastos Avulsos",v:fmt(eT),c:t.blue},{l:"Parcelas/mês",v:fmt(iT),c:t.warn},{l:"Total Comprometido",v:fmt(tot),c:t.danger},{l:"Dinheiro Livre",v:fmt(rem),c:rem>=0?t.accent:t.danger}].map(s=>`<div class="crd" style="padding:16px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><p style="font-size:13px;color:${t.muted}">${s.l}</p><p style="font-size:20px;font-weight:800;color:${s.c}">${s.v}</p></div>`).join("")}</div><div>${chartH}<p class="sec">Gastos por Categoria</p><div class="crd" style="padding:20px;margin-bottom:20px">${catBars||`<p style="color:${t.muted};font-size:13px">Nenhum gasto registrado.</p>`}</div>${S.installments.length?`<p class="sec">Resumo das Dívidas</p>${S.installments.map(i=>{const prog=(i.paidInstallments/i.installments)*100;return`<div class="crd" style="padding:16px 20px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><p style="font-size:13px;font-weight:600">${i.desc}</p><p style="font-size:13px;font-weight:700;color:${t.danger}">${fmt((i.installments-i.paidInstallments)*i.installmentValue)} restante</p></div><div class="prog-bg" style="height:5px"><div class="prog-fill" style="width:${prog}%;background:${t.accent}"></div></div><p style="font-size:10px;color:${t.muted};margin-top:5px">${i.paidInstallments} de ${i.installments} parcelas pagas</p></div>`;}).join("")}`:""}${window._houseMembers&&Object.keys(window._houseMembers).length>1?`<p class="sec">Membros da Casa 👫</p><div class="crd" style="padding:16px 20px">${Object.entries(window._houseMembers).map(([uid,name])=>`<div class="row"><div style="width:36px;height:36px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#000;flex-shrink:0">${(name||"?")[0].toUpperCase()}</div><p style="font-size:14px;font-weight:600">${name}</p></div>`).join("")}</div>`:""}</div></div>`;
+  document.getElementById("tab-health").innerHTML=`<div class="grid-2" style="align-items:start"><div>${[{l:"Salário",v:fmt(S.salary),c:t.accent},{l:"Extra (Caixa)",v:fmt(S.extra),c:t.blue},{l:"Total em Conta",v:fmt(S.salary+S.extra),c:t.accent},{l:"Gastos Avulsos",v:fmt(eT),c:t.blue},{l:"Parcelas/mês",v:fmt(iT),c:t.warn},{l:"Total Comprometido",v:fmt(tot),c:t.danger},{l:"Dinheiro Livre",v:fmt(rem),c:rem>=0?t.accent:t.danger}].map(s=>`<div class="crd" style="padding:16px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><p style="font-size:13px;color:${t.muted}">${s.l}</p><p style="font-size:20px;font-weight:800;color:${s.c}">${s.v}</p></div>`).join("")}</div><div>${chartH}<p class="sec">Gastos por Categoria</p><div class="crd" style="padding:20px;margin-bottom:20px">${catBars||`<p style="color:${t.muted};font-size:13px">Nenhum gasto registrado.</p>`}</div>${S.installments.length?`<p class="sec">Resumo das Dívidas</p>${S.installments.map(i=>{const prog=(i.paidInstallments/i.installments)*100;return`<div class="crd" style="padding:16px 20px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><p style="font-size:13px;font-weight:600">${i.desc}</p><p style="font-size:13px;font-weight:700;color:${t.danger}">${fmt((i.installments-i.paidInstallments)*i.installmentValue)} restante</p></div><div class="prog-bg" style="height:5px"><div class="prog-fill" style="width:${prog}%;background:${t.accent}"></div></div><p style="font-size:10px;color:${t.muted};margin-top:5px">${i.paidInstallments} de ${i.installments} parcelas pagas</p></div>`;}).join("")}`:""}${window._houseMembers&&Object.keys(window._houseMembers).length>1?`<p class="sec">Membros da Casa 👫</p><div class="crd" style="padding:16px 20px">${Object.entries(window._houseMembers).map(([uid,name])=>`<div class="row"><div style="width:36px;height:36px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#000;flex-shrink:0">${(name||"?")[0].toUpperCase()}</div><p style="font-size:14px;font-weight:600">${name}</p></div>`).join("")}</div>`:""}</div></div>`;
 }
 
 // ── ACTIONS ───────────────────────────────────────────────────────────
@@ -1018,7 +1078,7 @@ function saveEditCard(){
 }
 
 // ── INSTALLMENT FORMS ─────────────────────────────────────────────────
-function openAddInst(){S.selectedInstCard=null;renderInstChips();["inst-desc","inst-total","inst-n"].forEach(id=>document.getElementById(id).value="");document.getElementById("inst-month").value=curM();document.getElementById("inst-preview").style.display="none";openModal("modal-inst");}
+function openAddInst(){S.selectedInstCard=null;renderInstChips();["inst-desc","inst-total","inst-n","inst-due"].forEach(id=>document.getElementById(id).value="");document.getElementById("inst-month").value=curM();document.getElementById("inst-preview").style.display="none";openModal("modal-inst");}
 function renderInstChips(){let h=`<button class="chip ${!S.selectedInstCard?"active":""}" onclick="selInstCard(null)">💵 Sem cartão</button>`;S.cards.forEach(c=>{const a=S.selectedInstCard===c.id;h+=`<button class="chip ${a?"active":""}" onclick="selInstCard('${c.id}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px"><span>${c.name}</span><span style="font-size:10px;opacity:.65">${fmt(c.limit)} limite</span></button>`;});document.getElementById("inst-card-chips").innerHTML=h;}
 function selInstCard(id){S.selectedInstCard=id;renderInstChips();}
 function updateInstPreview(){const total=parseFloat(document.getElementById("inst-total").value),n=parseInt(document.getElementById("inst-n").value),p=document.getElementById("inst-preview"),t=T();if(total&&n&&n>0){p.style.display="block";p.style.background=t.accent+"18";p.style.border=`1px solid ${t.accent}44`;document.getElementById("inst-preview-val").textContent=fmt(total/n);document.getElementById("inst-preview-val").style.color=t.accent;}else p.style.display="none";}
@@ -1030,10 +1090,11 @@ function saveInst(){
   if(!total||total<=0){tEl.classList.add("error");setTimeout(()=>tEl.classList.remove("error"),600);ok=false;}
   if(!n||n<1){nEl.classList.add("error");setTimeout(()=>nEl.classList.remove("error"),600);ok=false;}
   if(!ok){toast("Preencha todos os campos!","err");return;}
-  const data={desc,cardId:S.selectedInstCard||null,totalAmount:total,installments:n,paidInstallments:0,installmentValue:parseFloat((total/n).toFixed(2)),startMonth:document.getElementById("inst-month").value};
+  const dueDay=parseInt(document.getElementById("inst-due").value)||0;
+  const data={desc,cardId:S.selectedInstCard||null,totalAmount:total,installments:n,paidInstallments:0,installmentValue:parseFloat((total/n).toFixed(2)),startMonth:document.getElementById("inst-month").value,dueDay};
   window.fbAdd("installments",data).then(()=>{toast("✅ Parcelamento adicionado!");closeModal("modal-inst");}).catch(e=>toast("Erro: "+e.message,"err"));
 }
-function openEditInst(id){const i=S.installments.find(x=>x.id===id);if(!i)return;editInstId=id;editInstCard=i.cardId;document.getElementById("edit-inst-desc").value=i.desc;document.getElementById("edit-inst-total").value=i.totalAmount;document.getElementById("edit-inst-n").value=i.installments;document.getElementById("edit-inst-paid").value=i.paidInstallments;document.getElementById("edit-inst-month").value=i.startMonth||curM();renderEditInstChips();openModal("modal-edit-inst");}
+function openEditInst(id){const i=S.installments.find(x=>x.id===id);if(!i)return;editInstId=id;editInstCard=i.cardId;document.getElementById("edit-inst-desc").value=i.desc;document.getElementById("edit-inst-total").value=i.totalAmount;document.getElementById("edit-inst-n").value=i.installments;document.getElementById("edit-inst-paid").value=i.paidInstallments;document.getElementById("edit-inst-month").value=i.startMonth||curM();document.getElementById("edit-inst-due").value=i.dueDay||"";renderEditInstChips();openModal("modal-edit-inst");}
 function renderEditInstChips(){let h=`<button class="chip ${!editInstCard?"active":""}" onclick="selEditInstCard(null)">💵 Sem cartão</button>`;S.cards.forEach(c=>{const a=editInstCard==c.id;h+=`<button class="chip ${a?"active":""}" onclick="selEditInstCard('${c.id}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px"><span>${c.name}</span><span style="font-size:10px;opacity:.65">${fmt(c.limit)} limite</span></button>`;});document.getElementById("edit-inst-card-chips").innerHTML=h;}
 function selEditInstCard(id){editInstCard=id;renderEditInstChips();}
 function saveEditInst(){
@@ -1044,6 +1105,7 @@ function saveEditInst(){
   if(!isNaN(n)&&n>=1){data.installments=n;data.installmentValue=parseFloat(((data.totalAmount||i.totalAmount)/n).toFixed(2));}
   if(!isNaN(paid)&&paid>=0)data.paidInstallments=Math.min(paid,data.installments||i.installments);
   data.startMonth=document.getElementById("edit-inst-month").value||i.startMonth;
+  data.dueDay=parseInt(document.getElementById("edit-inst-due").value)||0;
   window.fbUpdate("installments",editInstId,data).then(()=>{toast("✅ Parcelamento atualizado!");closeModal("modal-edit-inst");}).catch(e=>toast("Erro: "+e.message,"err"));
 }
 
