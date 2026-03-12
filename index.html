@@ -62,47 +62,54 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) { showLoginScreen(); return; }
   showLoadingScreen(user);
 
-  // Verifica se URL tem ?join=houseId (convite)
-  const joinId = new URLSearchParams(location.search).get("join");
-  if (joinId && joinId.length > 5) {
-    await handleJoinInvite(user, joinId);
-    // Limpa o parâmetro da URL sem recarregar
-    window.history.replaceState({}, "", location.pathname);
+  try {
+    const joinId = new URLSearchParams(location.search).get("join");
+    if (joinId && joinId.length > 5) {
+      await handleJoinInvite(user, joinId);
+      window.history.replaceState({}, "", location.pathname);
+    }
+
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists() && userSnap.data().houseId) {
+      houseId = userSnap.data().houseId;
+    } else {
+      const houseRef = await addDoc(collection(db, "houses"), {
+        members: [user.uid],
+        memberNames: { [user.uid]: user.displayName || user.email },
+        salary: 0, extra: 0, theme: "dark",
+        createdAt: new Date().toISOString(),
+        createdBy: user.uid,
+      });
+      houseId = houseRef.id;
+      await setDoc(userRef, {
+        houseId,
+        name: user.displayName || user.email,
+        email: user.email,
+        photoURL: user.photoURL || "",
+      });
+    }
+
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        name: user.displayName || user.email,
+        photoURL: user.photoURL || "",
+      });
+    } catch(_) {}
+
+    startListeners(user);
+    updateUserBadge(user);
+
+  } catch(e) {
+    document.getElementById("loading-msg").textContent = "❌ Erro: " + e.message;
+    document.getElementById("loading-msg").style.color = "#ff4d6d";
+    const btn = document.createElement("button");
+    btn.textContent = "Tentar novamente";
+    btn.style.cssText = "margin-top:20px;padding:12px 24px;background:#00e5a0;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;color:#000";
+    btn.onclick = () => doLogout();
+    document.getElementById("loading-screen").appendChild(btn);
   }
-
-  // Busca ou cria casa do usuário
-  const userRef = doc(db, "users", user.uid);
-  const userSnap = await getDoc(userRef);
-
-  if (userSnap.exists() && userSnap.data().houseId) {
-    houseId = userSnap.data().houseId;
-  } else {
-    // Cria nova casa
-    const houseRef = await addDoc(collection(db, "houses"), {
-      members: [user.uid],
-      memberNames: { [user.uid]: user.displayName || user.email },
-      salary: 0, extra: 0, theme: "dark",
-      createdAt: new Date().toISOString(),
-      createdBy: user.uid,
-    });
-    houseId = houseRef.id;
-    await setDoc(userRef, {
-      houseId,
-      name: user.displayName || user.email,
-      email: user.email,
-      photoURL: user.photoURL || "",
-    });
-  }
-
-  // Atualiza nome/foto do usuário
-  await updateDoc(doc(db, "users", user.uid), {
-    name: user.displayName || user.email,
-    photoURL: user.photoURL || "",
-  });
-
-  // Inicia listeners em tempo real
-  startListeners(user);
-  updateUserBadge(user);
 });
 
 async function handleJoinInvite(user, joinId) {
