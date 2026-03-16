@@ -694,7 +694,7 @@ function checkAutoBackup(){
   const last=localStorage.getItem("lastBackup");
   if(!last)return;
   const days=(Date.now()-new Date(last).getTime())/(1000*60*60*24);
-  if(days>=7){
+  if(days>=3){
     doExportBackup(true);
     toast("💾 Backup automático realizado!");
   }
