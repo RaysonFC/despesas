@@ -426,13 +426,13 @@ window.updateUserBadge = function() {
         <p style="font-size:10px;color:${t.accent}">● Online</p>
       </div>
     </div>`;
-  // Topbar (mobile)
+  // Topbar (só mobile) — exibe apenas emoji + nome, sem caixa/badge
   const tb = document.getElementById("topbar-user");
   if (tb) {
-    tb.style.display = "flex";
-    tb.innerHTML = `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:10px;background:${t.cardLight};border:1px solid ${t.border}">
-      <span style="font-size:15px">${u.emoji}</span>
-      <span style="font-size:12px;font-weight:700">${displayName}</span>
-    </div>`;
+    const mob = window.innerWidth < 768;
+    tb.style.display = mob ? "flex" : "none";
+    if (mob) {
+      tb.innerHTML = `<span style="font-size:13px;font-weight:700;color:${t.muted}">${u.emoji} ${displayName}</span>`;
+    }
   }
 };

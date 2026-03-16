@@ -145,7 +145,7 @@
       <h1>💰 Meu Orçamento</h1>
     </div>
 
-    <!-- Navegação principal (oculta no mobile — bottom-nav faz isso) -->
+    <!-- Navegação principal (oculta no mobile — bottom-nav já faz isso) -->
     <div id="sidebar-nav-links">
       <button class="side-btn active" id="side-home"   onclick="setTab('home');closeSidebar()">  <span class="icon">🏠</span>Início</button>
       <button class="side-btn"        id="side-cards"  onclick="setTab('cards');closeSidebar()"> <span class="icon">💳</span>Cartões</button>
@@ -155,10 +155,12 @@
       <hr class="side-divider"/>
     </div>
 
-    <!-- Rodapé da sidebar -->
+    <!-- Utilitários (sempre visíveis, inclusive no mobile) -->
+    <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
+    <button onclick="openBackup()" class="side-btn"><span class="icon">💾</span>Backup</button>
+
+    <!-- Rodapé da sidebar: salário + usuário + sair -->
     <div id="sidebar-bottom">
-      <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
-      <button onclick="openBackup()" class="side-btn"><span class="icon">💾</span>Backup</button>
       <hr class="side-divider"/>
       <div id="salary-sidebar"></div>
       <div id="user-badge"></div>
@@ -186,9 +188,7 @@
       <div id="topbar-right">
         <!-- Indicador de sync -->
         <div id="sync-indicator"><span id="sync-dot"></span><span id="sync-txt">Sincronizado</span></div>
-        <!-- Tema (só mobile) -->
-        <button onclick="openThemes()" id="theme-btn-top" class="btn-sm" style="display:none">🌙 Tema</button>
-        <!-- Usuário logado (mobile) -->
+        <!-- Nome do usuário logado (só mobile, ao lado das infos de salário) -->
         <div id="topbar-user" style="display:none;align-items:center"></div>
         <!-- Salário + Extra + Total -->
         <div id="salary-topbar"></div>

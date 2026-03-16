@@ -533,8 +533,16 @@ window.closeSidebar = () => {
 // ── LAYOUT ────────────────────────────────────────────────────────────
 function checkLayout(){
   const mob=window.innerWidth<768;
-  const tb=document.getElementById("theme-btn-top");
-  if(tb)tb.style.display=mob?"flex":"none";
+  const tu=document.getElementById("topbar-user");
+  if(tu){
+    if(mob&&window._currentUser){
+      const t=T();
+      tu.style.display="flex";
+      tu.innerHTML=`<span style="font-size:13px;font-weight:700;color:${t.muted}">${window._currentUser.emoji||"👤"} ${window._currentUser.name||""}</span>`;
+    } else {
+      tu.style.display="none";
+    }
+  }
   if(!mob)closeSidebar();
 }
 window.addEventListener("resize",()=>{checkLayout();renderAll();});
@@ -797,12 +805,6 @@ window._checkAutoBackupOnLoad = ()=>{
   }, 5000);
 };
 
-// ── LAYOUT ────────────────────────────────────────────────────────────
-function checkLayout(){
-  const mob=window.innerWidth<768;
-  const tb=document.getElementById("theme-btn-top");if(tb)tb.style.display=mob?"flex":"none";
-}
-window.addEventListener("resize",()=>{checkLayout();renderAll();});
 
 // Expõe _auth para updateUserBadge
 import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js").then(m=>{
