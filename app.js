@@ -1,4 +1,4 @@
-/* MeuOrçamento — app.js: Estado, render, formulários */
+/* MeuOrçamento — app.js */
 
 // ── DADOS ESTÁTICOS ───────────────────────────────────────────────────
 const THEMES={

@@ -1,4 +1,4 @@
-/* MeuOrçamento — firebase.js: Auth + Firestore */
+/* MeuOrçamento — firebase.js */
 
 import { initializeApp }                               from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -57,9 +57,28 @@ window.selectUser = (username) => {
 };
 
 window.backToSelect = () => {
-  document.getElementById("step-select").style.display = "block";
+  document.getElementById("step-select").style.display   = "block";
   document.getElementById("step-password").style.display = "none";
-  document.getElementById("login-error").style.display = "none";
+  document.getElementById("login-error").style.display   = "none";
+  const rb = document.getElementById("reset-box");
+  if (rb) rb.style.display = "none";
+};
+
+window.toggleResetBox = () => {
+  const box  = document.getElementById("reset-box");
+  if (!box) return;
+  const open = box.style.display === "none" || box.style.display === "";
+  box.style.display = open ? "block" : "none";
+  // Mostra email que vai receber
+  if (open) {
+    const email = EMAIL_MAP[window._loginUsername] || "";
+    const prev  = document.getElementById("reset-email-preview");
+    if (prev) prev.textContent = "📧 " + email;
+    const btn = document.getElementById("reset-btn");
+    if (btn) { btn.textContent = "Enviar email de redefinição"; btn.disabled = false; }
+    const msg = document.getElementById("reset-msg");
+    if (msg) msg.style.display = "none";
+  }
 };
 
 // ── LOGIN normal ──────────────────────────────────────────────────────
