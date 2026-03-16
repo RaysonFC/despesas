@@ -243,7 +243,17 @@ window.doLogout = async () => {
 onAuthStateChanged(auth, async (user) => {
   if (!user) { showLoginScreen(); return; }
 
-  const info = COUPLE[user.email];
+  // Busca nome pelo email exato, ou por correspondência parcial (compatibilidade)
+  let info = COUPLE[user.email];
+  if (!info) {
+    // Fallback: checa se o email contém parte conhecida (ex: conta antiga)
+    const emailLower = user.email.toLowerCase();
+    if (emailLower.includes("raysandra") || emailLower.includes("rayson")) {
+      info = { name: "Rayson", emoji: "👨" };
+    } else if (emailLower.includes("alecoelho") || emailLower.includes("alessandra")) {
+      info = { name: "Alessandra", emoji: "👩" };
+    }
+  }
   currentUserInfo = {
     uid:   user.uid,
     email: user.email,
@@ -255,39 +265,23 @@ onAuthStateChanged(auth, async (user) => {
   showLoadingScreen(currentUserInfo.name);
 
   try {
-    // 1. Verifica se o usuário já tem uma casa salva no Firestore
-    const userRef  = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
-    let resolvedHouseId = HOUSE_ID; // padrão
-
-    if (userSnap.exists() && userSnap.data().houseId) {
-      // Usuário antigo — usa a casa que ele já tinha
-      resolvedHouseId = userSnap.data().houseId;
-    }
-
-    // Salva/atualiza doc do usuário apontando para a casa correta
-    await setDoc(userRef, {
-      houseId: resolvedHouseId,
-      name:    info?.name  || user.email,
-      email:   user.email,
-    }, { merge: true });
-
-    // 2. Garante que o doc da casa existe
-    const houseRef  = doc(db, "houses", resolvedHouseId);
+    // Garante que o doc da casa existe
+    const houseRef = doc(db, "houses", HOUSE_ID);
     const houseSnap = await getDoc(houseRef);
     if (!houseSnap.exists()) {
       await setDoc(houseRef, {
-        salary: 0, extra: 0, themes: {},
+        salary: 0, extra: 0,
+        themes: {},       // tema por usuário: { uid: "dark" }
         createdAt: new Date().toISOString(),
       });
     }
 
-    // 3. Carrega tema pessoal
-    const houseData = houseSnap.exists() ? houseSnap.data() : {};
-    S.theme = houseData?.themes?.[user.uid] || "dark";
+    // Salva tema pessoal do usuário no Firestore (se não existir ainda)
+    const houseData = (await getDoc(houseRef)).data();
+    const myTheme = houseData?.themes?.[user.uid] || "dark";
+    S.theme = myTheme;
 
-    // 4. Inicia listeners com o houseId resolvido
-    startListeners(user, resolvedHouseId);
+    startListeners(user);
 
   } catch(e) {
     document.getElementById("loading-msg").textContent = "❌ Erro: " + e.message;
@@ -301,34 +295,38 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ── LISTENERS FIRESTORE ───────────────────────────────────────────────
-function startListeners(user, houseId) {
-  // houseId pode ser diferente de HOUSE_ID se o usuário já tinha dados
-  window._activeHouseId = houseId;
+function startListeners(user) {
   unsubs.forEach(u => u());
   unsubs = [];
 
-  unsubs.push(onSnapshot(doc(db, "houses", houseId), snap => {
+  // Casa (salary, extra, themes por usuário)
+  unsubs.push(onSnapshot(doc(db, "houses", HOUSE_ID), snap => {
     if (!snap.exists()) return;
     const d = snap.data();
     S.salary = d.salary || 0;
     S.extra  = d.extra  || 0;
+    // Tema pessoal: só aplica o tema DO usuário atual
     const myTheme = d.themes?.[user.uid];
-    if (myTheme && myTheme !== S.theme) S.theme = myTheme;
+    if (myTheme && myTheme !== S.theme) {
+      S.theme = myTheme;
+    }
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "expenses"), snap => {
+
+  // Gastos, cartões, parcelamentos, metas — todos compartilhados
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "expenses"), snap => {
     S.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "cards"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "cards"), snap => {
     S.cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "installments"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "installments"), snap => {
     S.installments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-  unsubs.push(onSnapshot(collection(db, "houses", houseId, "goals"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "goals"), snap => {
     S.goals = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
@@ -339,8 +337,7 @@ function startListeners(user, houseId) {
 // ── FIREBASE HELPERS ──────────────────────────────────────────────────
 // Salva salary/extra na casa (compartilhado)
 window.fbSaveHouse = async (data) => {
-  const hId = window._activeHouseId || HOUSE_ID;
-  await updateDoc(doc(db, "houses", hId), data);
+  await updateDoc(doc(db, "houses", HOUSE_ID), data);
 };
 
 // Salva tema PESSOAL (só afeta o usuário atual)
@@ -353,7 +350,7 @@ window.fbSaveTheme = async (themeKey) => {
 };
 
 window.fbAdd = async (col, data) => {
-  const ref = await addDoc(collection(db, "houses", window._activeHouseId || HOUSE_ID, col), {
+  const ref = await addDoc(collection(db, "houses", HOUSE_ID, col), {
     ...data,
     _createdAt: new Date().toISOString(),
     _createdBy: auth.currentUser?.uid || "",
@@ -367,7 +364,7 @@ window.fbUpdate = async (col, id, data) => {
 };
 
 window.fbDel = async (col, id) => {
-  await deleteDoc(doc(db, "houses", window._activeHouseId || HOUSE_ID, col, id));
+  await deleteDoc(doc(db, "houses", HOUSE_ID, col, id));
 };
 
 // ── TELA HELPERS ──────────────────────────────────────────────────────
@@ -417,23 +414,25 @@ window.updateUserBadge = function() {
   const u = window._currentUser;
   if (!u) return;
   const t = T();
-  // Sidebar badge — usa classes CSS
+  // Garante que sempre mostra o nome, nunca o email
+  const displayName = u.name && !u.name.includes("@") ? u.name : (u.emoji === "👨" ? "Rayson" : "Alessandra");
+  // Sidebar badge
   const el = document.getElementById("user-badge");
   if (el) el.innerHTML = `
     <div class="user-badge-inner">
       <div class="user-avatar" style="background:${t.accent}">${u.emoji}</div>
       <div style="min-width:0;flex:1">
-        <p style="font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</p>
+        <p style="font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayName}</p>
         <p style="font-size:10px;color:${t.accent}">● Online</p>
       </div>
     </div>`;
-  // Topbar (mobile) — compacto
+  // Topbar (mobile)
   const tb = document.getElementById("topbar-user");
   if (tb) {
     tb.style.display = "flex";
     tb.innerHTML = `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:10px;background:${t.cardLight};border:1px solid ${t.border}">
       <span style="font-size:15px">${u.emoji}</span>
-      <span style="font-size:12px;font-weight:700">${u.name}</span>
+      <span style="font-size:12px;font-weight:700">${displayName}</span>
     </div>`;
   }
 };

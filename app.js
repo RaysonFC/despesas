@@ -141,7 +141,7 @@ function renderSalarySidebar(){
 function renderSalaryTopbar(){
   const t=T(),total=S.salary+S.extra;
   const el=document.getElementById("salary-topbar");if(!el)return;
-  el.innerHTML=`<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end"><div style="text-align:right"><p style="font-size:10px;color:${t.muted};margin-bottom:2px">Salário</p><button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:16px;font-weight:800;padding:0">${fmt(S.salary)} ✎</button></div><div style="text-align:right"><p style="font-size:10px;color:${t.muted};margin-bottom:2px">Extra</p><button onclick="openSalaryModal()" style="background:none;border:none;color:${t.blue};font-size:16px;font-weight:800;padding:0">${fmt(S.extra)} ✎</button></div><div style="text-align:right;padding-left:12px;border-left:1px solid ${t.border}"><p style="font-size:10px;color:${t.muted};margin-bottom:2px">Total</p><button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:18px;font-weight:800;padding:0">${fmt(total)}</button></div></div>`;
+  el.innerHTML=`<button onclick="openSalaryModal()" style="display:flex;align-items:center;gap:6px;background:${t.cardLight};border:1px solid ${t.border};border-radius:10px;padding:6px 12px;cursor:pointer;white-space:nowrap"><span style="font-size:10px;color:${t.muted}">Total</span><span style="font-size:14px;font-weight:800;color:${t.accent}">${fmt(total)}</span><span style="font-size:10px;color:${t.muted}">✎</span></button>`;
 }
 
 // ── STATUS ────────────────────────────────────────────────────────────
