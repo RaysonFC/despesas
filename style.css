@@ -111,7 +111,7 @@ button{cursor:pointer;}
   /* Oculta links de nav da sidebar (bottom-nav já faz isso) */
   #sidebar-nav-links{display:none;}
 
-  /* sidebar-bottom ocupa o espaço restante; Sair empurrado para baixo */
+  /* sidebar-bottom ocupa o espaço restante; Sair logo após o usuário */
   #sidebar-bottom{
     flex:1;
     margin-top:0;
@@ -122,9 +122,8 @@ button{cursor:pointer;}
     min-height:0;
   }
   #logout-btn{
-    margin-top:auto!important;
+    margin-top:4px!important;
     flex-shrink:0;
-    padding-bottom:env(safe-area-inset-bottom,8px);
   }
 
   /* Topbar mobile: oculta botão Tema (fica no menu) */

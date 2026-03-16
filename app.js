@@ -95,7 +95,14 @@ function applyTheme(){
   const bn=document.getElementById("bottom-nav");if(bn)bn.style.cssText=`background:${t.navBg};border-top-color:${t.border}`;
   const ti=document.getElementById("theme-icon-side");if(ti)ti.textContent=t.icon;
   const tb=document.getElementById("theme-btn-top");if(tb){tb.textContent=t.icon+" Tema";tb.style.cssText=`background:${t.cardLight};border:1px solid ${t.border};color:${t.muted}`;}
-  const lb=document.getElementById("logout-btn");if(lb)lb.style.color=t.danger;
+  const lb=document.getElementById("logout-btn");
+  if(lb){
+    lb.style.color=t.danger;
+    lb.style.background=`${t.danger}10`;
+    lb.style.border=`1px solid ${t.danger}30`;
+    lb.style.borderRadius="12px";
+    lb.style.marginTop="4px";
+  }
   // Aplica ham-btn color
   const hb=document.getElementById("ham-btn");if(hb){const spans=hb.querySelectorAll("span");spans.forEach(s=>s.style.background=t.text);}
   let st=document.getElementById("dyn-style")||document.createElement("style");st.id="dyn-style";
