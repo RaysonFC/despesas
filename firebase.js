@@ -7,7 +7,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
          reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, collection,
          onSnapshot, setDoc, addDoc, updateDoc,
-         deleteDoc, getDoc }                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+         deleteDoc, getDoc, serverTimestamp }          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyD-wsqjITPFeSSZ9c1itBBzUQYpyx0AGzA",
@@ -36,6 +36,12 @@ const db   = getFirestore(app);
 
 let unsubs = [];
 let currentUserInfo = null; // { name, emoji, email, uid }
+
+// ── RATE LIMITING ────────────────────────────────────────────────────
+const _rl = { count:0, lockedUntil:0 };
+function rlCheck(){ const n=Date.now(); if(_rl.lockedUntil>n){ const m=Math.ceil((_rl.lockedUntil-n)/60000); return `Conta bloqueada por ${m} min. Muitas tentativas.`; } return null; }
+function rlFail(){ _rl.count++; if(_rl.count>=5){ _rl.lockedUntil=Date.now()+15*60000; _rl.count=0; } }
+function rlReset(){ _rl.count=0; _rl.lockedUntil=0; }
 
 // ── MAPA USUÁRIO → EMAIL ─────────────────────────────────────────────
 const EMAIL_MAP = {
@@ -83,21 +89,31 @@ window.toggleResetBox = () => {
 
 // ── LOGIN normal ──────────────────────────────────────────────────────
 window.doLogin = async () => {
+  const blocked = rlCheck();
+  if (blocked) { showLoginError(blocked); return; }
   const pass = document.getElementById("login-pass").value;
   if (!pass) { showLoginError("Digite sua senha!"); return; }
   const email = EMAIL_MAP[window._loginUsername];
+  if (!email) { showLoginError("Usuário inválido."); return; }
   showLoginLoading(true);
   try {
     await signInWithEmailAndPassword(auth, email, pass);
+    rlReset();
   } catch(e) {
     showLoginLoading(false);
-    if (e.code === "auth/invalid-credential" || e.code === "auth/user-not-found" || e.code === "auth/wrong-password") {
-      showLoginError("Senha incorreta. Tente novamente.");
-    } else if (e.code === "auth/too-many-requests") {
-      showLoginError("Muitas tentativas. Aguarde alguns minutos.");
-    } else {
-      showLoginError("Erro: " + e.message);
-    }
+    rlFail();
+    const blocked2 = rlCheck();
+    if (blocked2) { showLoginError(blocked2); return; }
+    const rem = 5 - _rl.count;
+    const msgs = {
+      "auth/invalid-credential": "Senha incorreta.",
+      "auth/user-not-found":     "Usuário não encontrado.",
+      "auth/wrong-password":     "Senha incorreta.",
+      "auth/too-many-requests":  "Muitas tentativas. Aguarde.",
+      "auth/network-request-failed": "Sem conexão.",
+    };
+    const suffix = rem > 0 && rem < 5 ? ` (${rem} tentativa(s) restante(s))` : "";
+    showLoginError((msgs[e.code] || "Erro: " + e.message) + suffix);
   }
 };
 
@@ -153,6 +169,31 @@ window.setupKeydown = (e) => { if (e.key === "Enter") doSetupPassword(); };
 
 // Permite Enter no campo de senha
 window.loginKeydown = (e) => { if (e.key === "Enter") doLogin(); };
+
+// ── FORÇA DE SENHA ────────────────────────────────────────────────────
+window.checkPasswordStrength = (inputId, barId) => {
+  const val = document.getElementById(inputId)?.value || "";
+  const bar  = document.getElementById(barId);
+  const lbl  = document.getElementById(barId + "-label");
+  if (!bar) return;
+  let score = 0;
+  if (val.length >= 8)           score++;
+  if (val.length >= 12)          score++;
+  if (/[A-Z]/.test(val))         score++;
+  if (/[0-9]/.test(val))         score++;
+  if (/[^A-Za-z0-9]/.test(val))  score++;
+  const levels = [
+    { w:"0%",   bg:"transparent", label:"" },
+    { w:"25%",  bg:"#ff4d6d",     label:"Fraca"    },
+    { w:"50%",  bg:"#ffc94a",     label:"Razoável" },
+    { w:"75%",  bg:"#4d9fff",     label:"Boa"      },
+    { w:"100%", bg:"#00e5a0",     label:"Forte"    },
+  ];
+  const lv = levels[Math.min(score, 4)];
+  bar.style.width      = lv.w;
+  bar.style.background = lv.bg;
+  if (lbl) { lbl.textContent = lv.label; lbl.style.color = lv.bg; }
+};
 
 // ── ESQUECI MINHA SENHA ───────────────────────────────────────────────
 window.doResetPassword = async () => {
@@ -363,24 +404,23 @@ window.updateUserBadge = function() {
   const u = window._currentUser;
   if (!u) return;
   const t = T();
-  const badgeHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
-    <div style="width:32px;height:32px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${u.emoji}</div>
-    <div style="min-width:0;flex:1">
-      <p style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.name}</p>
-      <p style="font-size:10px;color:${t.muted}">● Online</p>
-    </div>
-    <button onclick="doLogout()" title="Sair" style="background:none;border:none;color:${t.muted};font-size:18px;padding:2px 6px;cursor:pointer">↩ Sair</button>
-  </div>`;
+  // Sidebar badge — usa classes CSS
   const el = document.getElementById("user-badge");
-  if (el) el.innerHTML = badgeHTML;
-  // Topbar user (mobile)
+  if (el) el.innerHTML = `
+    <div class="user-badge-inner">
+      <div class="user-avatar" style="background:${t.accent}">${u.emoji}</div>
+      <div style="min-width:0;flex:1">
+        <p style="font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</p>
+        <p style="font-size:10px;color:${t.accent}">● Online</p>
+      </div>
+    </div>`;
+  // Topbar (mobile) — compacto
   const tb = document.getElementById("topbar-user");
   if (tb) {
     tb.style.display = "flex";
-    tb.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:12px;border:1px solid ${t.border};background:${t.cardLight}">
-      <span style="font-size:16px">${u.emoji}</span>
-      <span style="font-size:13px;font-weight:700">${u.name}</span>
-      <button onclick="doLogout()" style="background:none;border:none;color:${t.muted};font-size:13px;font-weight:600;padding:0 0 0 6px;cursor:pointer" title="Sair">↩ Sair</button>
+    tb.innerHTML = `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:10px;background:${t.cardLight};border:1px solid ${t.border}">
+      <span style="font-size:15px">${u.emoji}</span>
+      <span style="font-size:12px;font-weight:700">${u.name}</span>
     </div>`;
   }
 };

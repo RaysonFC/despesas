@@ -88,17 +88,42 @@ function cardHTML(card,small){
 
 // ── THEME ─────────────────────────────────────────────────────────────
 function applyTheme(){
-  const t=T(),light=S.theme==="light"||S.theme==="rose";
-  document.body.style.background=t.bg;document.body.style.color=t.text;
+  const t=T(), light=S.theme==="light"||S.theme==="rose";
+  document.body.style.background=t.bg;
+  document.body.style.color=t.text;
   const sb=document.getElementById("sidebar");if(sb)sb.style.cssText=`background:${t.sidebar};border-color:${t.border}`;
   const bn=document.getElementById("bottom-nav");if(bn)bn.style.cssText=`background:${t.navBg};border-top-color:${t.border}`;
   const ti=document.getElementById("theme-icon-side");if(ti)ti.textContent=t.icon;
-  const themeTopBtn=document.getElementById("theme-btn-top");if(themeTopBtn){themeTopBtn.style.background=t.cardLight;themeTopBtn.style.border=`1px solid ${t.border}`;themeTopBtn.style.color=t.muted;}
-  const tb=document.getElementById("theme-btn-top");if(tb)tb.textContent=t.icon+" Tema";
+  const tb=document.getElementById("theme-btn-top");if(tb){tb.textContent=t.icon+" Tema";tb.style.cssText=`background:${t.cardLight};border:1px solid ${t.border};color:${t.muted}`;}
+  const lb=document.getElementById("logout-btn");if(lb)lb.style.color=t.danger;
+  // Aplica ham-btn color
+  const hb=document.getElementById("ham-btn");if(hb){const spans=hb.querySelectorAll("span");spans.forEach(s=>s.style.background=t.text);}
   let st=document.getElementById("dyn-style")||document.createElement("style");st.id="dyn-style";
-  st.textContent=`::-webkit-scrollbar-thumb{background:${t.border};}.crd{background:${t.card};border-color:${t.border};}.inp{background:${t.cardLight};border-color:${t.border};color:${t.text};}.inp:focus{border-color:${t.accent};}.inp.error{border-color:${t.danger}!important;}.chip{background:${t.cardLight};border-color:${t.border};color:${t.muted};}.chip.active{background:${t.accent}18;border-color:${t.accent};color:${t.accent};}.side-btn{color:${t.muted};}.side-btn:hover{background:${t.accent}12;color:${t.accent};}.side-btn.active{background:${t.accent}18;color:${t.accent};}.tab-btn{color:${t.muted};}.tab-btn.active{color:${t.accent};}.row{border-color:${t.border}44;}.btn-sm{background:${t.cardLight};border:1px solid ${t.border};color:${t.muted};}.btn-p{background:${t.accent};color:${light?"#fff":"#000"};}.modal-box{background:${t.card};border-color:${t.border};}.sec{color:${t.muted};}.prog-bg{background:${t.cardLight};}#login-screen{background:${t.bg};}`;
+  st.textContent=`
+    ::-webkit-scrollbar-thumb{background:${t.border};}
+    .crd,#status-card{background:${t.card};border-color:${t.border};}
+    .inp{background:${t.cardLight};border-color:${t.border};color:${t.text};}
+    .inp:focus{border-color:${t.accent};}
+    .inp.error{border-color:${t.danger}!important;}
+    .chip{background:${t.cardLight};border-color:${t.border};color:${t.muted};}
+    .chip.active{background:${t.accent}18;border-color:${t.accent};color:${t.accent};}
+    .side-btn{color:${t.muted};}
+    .side-btn:hover{background:${t.accent}12;color:${t.accent};}
+    .side-btn.active{background:${t.accent}18;color:${t.accent};}
+    .side-divider{background:${t.border};}
+    .tab-btn{color:${t.muted};}
+    .tab-btn.active{color:${t.accent};}
+    .row{border-color:${t.border}44;}
+    .btn-sm{background:${t.cardLight};border:1px solid ${t.border};color:${t.muted};}
+    .btn-p{background:${t.accent};color:${light?"#fff":"#000"};}
+    .modal-box{background:${t.card};border-color:${t.border};}
+    .sec{color:${t.muted};}
+    .prog-bg{background:${t.cardLight};}
+    .user-badge-inner{border-color:${t.border};background:${t.cardLight};}
+    .user-avatar{background:${t.accent};}
+    #login-screen,#loading-screen,#setup-screen{background:${t.bg};}
+  `;
   document.head.appendChild(st);
-  // Atualiza sync dot color
   const sd=document.getElementById("sync-dot");if(sd)sd.style.background=t.accent;
 }
 
@@ -470,10 +495,29 @@ function depositGoal(id){
   }).catch(e=>toast("Erro: "+e.message,"err"));
 }
 
+// ── HAMBURGUER ────────────────────────────────────────────────────────
+window.toggleSidebar = () => {
+  const sb=document.getElementById("sidebar");
+  const ov=document.getElementById("sidebar-overlay");
+  const btn=document.getElementById("ham-btn");
+  const open=sb.classList.toggle("open");
+  ov.classList.toggle("open",open);
+  btn.classList.toggle("open",open);
+  document.body.style.overflow=open?"hidden":"";
+};
+window.closeSidebar = () => {
+  document.getElementById("sidebar")?.classList.remove("open");
+  document.getElementById("sidebar-overlay")?.classList.remove("open");
+  document.getElementById("ham-btn")?.classList.remove("open");
+  document.body.style.overflow="";
+};
+
 // ── LAYOUT ────────────────────────────────────────────────────────────
 function checkLayout(){
   const mob=window.innerWidth<768;
-  const tb=document.getElementById("theme-btn-top");if(tb)tb.style.display=mob?"flex":"none";
+  const tb=document.getElementById("theme-btn-top");
+  if(tb)tb.style.display=mob?"flex":"none";
+  if(!mob)closeSidebar();
 }
 window.addEventListener("resize",()=>{checkLayout();renderAll();});
 
@@ -694,7 +738,7 @@ function checkAutoBackup(){
   const last=localStorage.getItem("lastBackup");
   if(!last)return;
   const days=(Date.now()-new Date(last).getTime())/(1000*60*60*24);
-  if(days>=7){
+  if(days>=3){
     doExportBackup(true);
     toast("💾 Backup automático realizado!");
   }
