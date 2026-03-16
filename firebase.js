@@ -255,23 +255,39 @@ onAuthStateChanged(auth, async (user) => {
   showLoadingScreen(currentUserInfo.name);
 
   try {
-    // Garante que o doc da casa existe
-    const houseRef = doc(db, "houses", HOUSE_ID);
+    // 1. Verifica se o usuário já tem uma casa salva no Firestore
+    const userRef  = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+    let resolvedHouseId = HOUSE_ID; // padrão
+
+    if (userSnap.exists() && userSnap.data().houseId) {
+      // Usuário antigo — usa a casa que ele já tinha
+      resolvedHouseId = userSnap.data().houseId;
+    }
+
+    // Salva/atualiza doc do usuário apontando para a casa correta
+    await setDoc(userRef, {
+      houseId: resolvedHouseId,
+      name:    info?.name  || user.email,
+      email:   user.email,
+    }, { merge: true });
+
+    // 2. Garante que o doc da casa existe
+    const houseRef  = doc(db, "houses", resolvedHouseId);
     const houseSnap = await getDoc(houseRef);
     if (!houseSnap.exists()) {
       await setDoc(houseRef, {
-        salary: 0, extra: 0,
-        themes: {},       // tema por usuário: { uid: "dark" }
+        salary: 0, extra: 0, themes: {},
         createdAt: new Date().toISOString(),
       });
     }
 
-    // Salva tema pessoal do usuário no Firestore (se não existir ainda)
-    const houseData = (await getDoc(houseRef)).data();
-    const myTheme = houseData?.themes?.[user.uid] || "dark";
-    S.theme = myTheme;
+    // 3. Carrega tema pessoal
+    const houseData = houseSnap.exists() ? houseSnap.data() : {};
+    S.theme = houseData?.themes?.[user.uid] || "dark";
 
-    startListeners(user);
+    // 4. Inicia listeners com o houseId resolvido
+    startListeners(user, resolvedHouseId);
 
   } catch(e) {
     document.getElementById("loading-msg").textContent = "❌ Erro: " + e.message;
@@ -285,38 +301,34 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ── LISTENERS FIRESTORE ───────────────────────────────────────────────
-function startListeners(user) {
+function startListeners(user, houseId) {
+  // houseId pode ser diferente de HOUSE_ID se o usuário já tinha dados
+  window._activeHouseId = houseId;
   unsubs.forEach(u => u());
   unsubs = [];
 
-  // Casa (salary, extra, themes por usuário)
-  unsubs.push(onSnapshot(doc(db, "houses", HOUSE_ID), snap => {
+  unsubs.push(onSnapshot(doc(db, "houses", houseId), snap => {
     if (!snap.exists()) return;
     const d = snap.data();
     S.salary = d.salary || 0;
     S.extra  = d.extra  || 0;
-    // Tema pessoal: só aplica o tema DO usuário atual
     const myTheme = d.themes?.[user.uid];
-    if (myTheme && myTheme !== S.theme) {
-      S.theme = myTheme;
-    }
+    if (myTheme && myTheme !== S.theme) S.theme = myTheme;
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-
-  // Gastos, cartões, parcelamentos, metas — todos compartilhados
-  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "expenses"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", houseId, "expenses"), snap => {
     S.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "cards"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", houseId, "cards"), snap => {
     S.cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "installments"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", houseId, "installments"), snap => {
     S.installments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
-  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "goals"), snap => {
+  unsubs.push(onSnapshot(collection(db, "houses", houseId, "goals"), snap => {
     S.goals = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (document.getElementById("layout").style.display !== "none") renderAll();
   }));
@@ -327,7 +339,8 @@ function startListeners(user) {
 // ── FIREBASE HELPERS ──────────────────────────────────────────────────
 // Salva salary/extra na casa (compartilhado)
 window.fbSaveHouse = async (data) => {
-  await updateDoc(doc(db, "houses", HOUSE_ID), data);
+  const hId = window._activeHouseId || HOUSE_ID;
+  await updateDoc(doc(db, "houses", hId), data);
 };
 
 // Salva tema PESSOAL (só afeta o usuário atual)
@@ -340,7 +353,7 @@ window.fbSaveTheme = async (themeKey) => {
 };
 
 window.fbAdd = async (col, data) => {
-  const ref = await addDoc(collection(db, "houses", HOUSE_ID, col), {
+  const ref = await addDoc(collection(db, "houses", window._activeHouseId || HOUSE_ID, col), {
     ...data,
     _createdAt: new Date().toISOString(),
     _createdBy: auth.currentUser?.uid || "",
@@ -354,7 +367,7 @@ window.fbUpdate = async (col, id, data) => {
 };
 
 window.fbDel = async (col, id) => {
-  await deleteDoc(doc(db, "houses", HOUSE_ID, col, id));
+  await deleteDoc(doc(db, "houses", window._activeHouseId || HOUSE_ID, col, id));
 };
 
 // ── TELA HELPERS ──────────────────────────────────────────────────────
