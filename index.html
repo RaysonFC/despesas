@@ -137,29 +137,42 @@
 <!-- ══ APP ════════════════════════════════════════════════════════════ -->
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 <div id="layout" style="display:none">
+
+  <!-- ── SIDEBAR ─────────────────────────────── -->
   <nav id="sidebar">
     <div class="logo">
       <p>Controle Financeiro</p>
       <h1>💰 Meu Orçamento</h1>
     </div>
+
+    <!-- Navegação principal -->
     <button class="side-btn active" id="side-home"   onclick="setTab('home');closeSidebar()">  <span class="icon">🏠</span>Início</button>
     <button class="side-btn"        id="side-cards"  onclick="setTab('cards');closeSidebar()"> <span class="icon">💳</span>Cartões</button>
     <button class="side-btn"        id="side-all"    onclick="setTab('all');closeSidebar()">   <span class="icon">📋</span>Gastos</button>
     <button class="side-btn"        id="side-goals"  onclick="setTab('goals');closeSidebar()"> <span class="icon">🎯</span>Metas</button>
     <button class="side-btn"        id="side-health" onclick="setTab('health');closeSidebar()"><span class="icon">📊</span>Saúde</button>
+
+    <!-- Rodapé da sidebar -->
     <div id="sidebar-bottom">
       <hr class="side-divider"/>
       <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
       <button onclick="openBackup()" class="side-btn"><span class="icon">💾</span>Backup</button>
+      <hr class="side-divider"/>
       <div id="salary-sidebar"></div>
       <div id="user-badge"></div>
-      <button onclick="doLogout()" class="side-btn" id="logout-btn"><span class="icon">↩</span>Sair da conta</button>
+      <hr class="side-divider"/>
+      <button onclick="doLogout()" class="side-btn" id="logout-btn">
+        <span class="icon">↩</span>Sair da conta
+      </button>
     </div>
   </nav>
 
+  <!-- ── MAIN ────────────────────────────────── -->
   <div id="main">
+
+    <!-- TOPBAR: linha 1 = título | linha 2 = salário -->
     <div id="topbar">
-      <div style="display:flex;align-items:center;gap:10px">
+      <div id="topbar-left">
         <button id="ham-btn" onclick="toggleSidebar()" aria-label="Menu">
           <span></span><span></span><span></span>
         </button>
@@ -169,9 +182,13 @@
         </div>
       </div>
       <div id="topbar-right">
+        <!-- Indicador de sync -->
+        <div id="sync-indicator"><span id="sync-dot"></span><span id="sync-txt">Sincronizado</span></div>
+        <!-- Tema (só mobile) -->
         <button onclick="openThemes()" id="theme-btn-top" class="btn-sm" style="display:none">🌙 Tema</button>
-        <div id="sync-indicator" style="font-size:11px;display:flex;align-items:center;gap:4px;opacity:.6"><span id="sync-dot"></span><span id="sync-txt">Sincronizado</span></div>
+        <!-- Usuário logado (mobile) -->
         <div id="topbar-user" style="display:none;align-items:center"></div>
+        <!-- Salário + Extra + Total -->
         <div id="salary-topbar"></div>
       </div>
     </div>

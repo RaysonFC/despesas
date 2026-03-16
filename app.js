@@ -121,10 +121,14 @@ function applyTheme(){
     .prog-bg{background:${t.cardLight};}
     .user-badge-inner{border-color:${t.border};background:${t.cardLight};}
     .user-avatar{background:${t.accent};}
+    #logout-btn{color:${t.danger}!important;font-weight:700;}
+    #topbar{border-bottom:1px solid ${t.border}44;}
     #login-screen,#loading-screen,#setup-screen{background:${t.bg};}
   `;
   document.head.appendChild(st);
   const sd=document.getElementById("sync-dot");if(sd)sd.style.background=t.accent;
+  // Topbar border
+  const tp=document.getElementById("topbar");if(tp)tp.style.borderBottomColor=t.border+"44";
 }
 
 function renderAll(){
