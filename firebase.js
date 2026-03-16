@@ -1,11 +1,10 @@
-/* ═══════════════════════════════════════════════════════════════
-   MeuOrçamento — js/firebase.js
-   Firebase Auth + Firestore listeners + helpers
-   ═══════════════════════════════════════════════════════════════ */
+/* MeuOrçamento — firebase.js: Auth + Firestore */
 
 import { initializeApp }                               from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-         updatePassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+         updatePassword, sendPasswordResetEmail,
+         signOut, onAuthStateChanged,
+         reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, collection,
          onSnapshot, setDoc, addDoc, updateDoc,
          deleteDoc, getDoc }                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -135,6 +134,42 @@ window.setupKeydown = (e) => { if (e.key === "Enter") doSetupPassword(); };
 
 // Permite Enter no campo de senha
 window.loginKeydown = (e) => { if (e.key === "Enter") doLogin(); };
+
+// ── ESQUECI MINHA SENHA ───────────────────────────────────────────────
+window.doResetPassword = async () => {
+  const email = EMAIL_MAP[window._loginUsername];
+  if (!email) { showResetMsg("Selecione seu usuário primeiro.", false); return; }
+
+  const btn = document.getElementById("reset-btn");
+  btn.textContent = "Enviando..."; btn.disabled = true;
+
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showResetMsg(`✅ Email enviado para ${email}!
+Verifique sua caixa de entrada (e spam).`, true);
+    btn.textContent = "Reenviar email";
+    btn.disabled = false;
+  } catch(e) {
+    btn.textContent = "Enviar email de redefinição";
+    btn.disabled = false;
+    const msgs = {
+      "auth/user-not-found": "Usuário não encontrado. Faça o 1º acesso primeiro.",
+      "auth/too-many-requests": "Muitas tentativas. Aguarde alguns minutos.",
+      "auth/network-request-failed": "Sem conexão. Verifique sua internet.",
+    };
+    showResetMsg(msgs[e.code] || "Erro: " + e.message, false);
+  }
+};
+
+function showResetMsg(msg, success) {
+  const el = document.getElementById("reset-msg");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "block";
+  el.style.background = success ? "#00e5a018" : "#ff4d6d18";
+  el.style.color = success ? "#00e5a0" : "#ff4d6d";
+  el.style.border = `1px solid ${success ? "#00e5a044" : "#ff4d6d44"}`;
+}
 
 window.doLogout = async () => {
   unsubs.forEach(u => u());

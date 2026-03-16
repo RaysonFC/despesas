@@ -1,7 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   MeuOrçamento — js/app.js
-   Estado global, temas, render, formulários e ações
-   ═══════════════════════════════════════════════════════════════ */
+/* MeuOrçamento — app.js: Estado, render, formulários */
 
 // ── DADOS ESTÁTICOS ───────────────────────────────────────────────────
 const THEMES={
