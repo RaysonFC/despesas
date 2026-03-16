@@ -141,7 +141,21 @@ function renderSalarySidebar(){
 function renderSalaryTopbar(){
   const t=T(),total=S.salary+S.extra;
   const el=document.getElementById("salary-topbar");if(!el)return;
-  el.innerHTML=`<button onclick="openSalaryModal()" style="display:flex;align-items:center;gap:6px;background:${t.cardLight};border:1px solid ${t.border};border-radius:10px;padding:6px 12px;cursor:pointer;white-space:nowrap"><span style="font-size:10px;color:${t.muted}">Total</span><span style="font-size:14px;font-weight:800;color:${t.accent}">${fmt(total)}</span><span style="font-size:10px;color:${t.muted}">✎</span></button>`;
+  el.innerHTML=`
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end">
+      <div style="text-align:right">
+        <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Salário</p>
+        <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:15px;font-weight:800;padding:0;cursor:pointer">${fmt(S.salary)} ✎</button>
+      </div>
+      <div style="text-align:right">
+        <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Extra</p>
+        <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.blue};font-size:15px;font-weight:800;padding:0;cursor:pointer">${fmt(S.extra)} ✎</button>
+      </div>
+      <div style="text-align:right;padding-left:12px;border-left:1px solid ${t.border}44">
+        <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Total</p>
+        <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:17px;font-weight:800;padding:0;cursor:pointer">${fmt(total)}</button>
+      </div>
+    </div>`;
 }
 
 // ── STATUS ────────────────────────────────────────────────────────────
