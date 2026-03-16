@@ -39,8 +39,8 @@ let currentUserInfo = null; // { name, emoji, email, uid }
 
 // ── MAPA USUÁRIO → EMAIL ─────────────────────────────────────────────
 const EMAIL_MAP = {
-  "rayson":     "rayson@meuorcamento.app",
-  "alessandra": "alessandra@meuorcamento.app",
+  "rayson":     "raysandra27@gmail.com",
+  "alessandra": "alecoelhofa@gmail.com",
 };
 
 // ── TELA: selecionar quem está entrando ──────────────────────────────
