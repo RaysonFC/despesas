@@ -145,16 +145,18 @@
       <h1>💰 Meu Orçamento</h1>
     </div>
 
-    <!-- Navegação principal -->
-    <button class="side-btn active" id="side-home"   onclick="setTab('home');closeSidebar()">  <span class="icon">🏠</span>Início</button>
-    <button class="side-btn"        id="side-cards"  onclick="setTab('cards');closeSidebar()"> <span class="icon">💳</span>Cartões</button>
-    <button class="side-btn"        id="side-all"    onclick="setTab('all');closeSidebar()">   <span class="icon">📋</span>Gastos</button>
-    <button class="side-btn"        id="side-goals"  onclick="setTab('goals');closeSidebar()"> <span class="icon">🎯</span>Metas</button>
-    <button class="side-btn"        id="side-health" onclick="setTab('health');closeSidebar()"><span class="icon">📊</span>Saúde</button>
+    <!-- Navegação principal (oculta no mobile — bottom-nav faz isso) -->
+    <div id="sidebar-nav-links">
+      <button class="side-btn active" id="side-home"   onclick="setTab('home');closeSidebar()">  <span class="icon">🏠</span>Início</button>
+      <button class="side-btn"        id="side-cards"  onclick="setTab('cards');closeSidebar()"> <span class="icon">💳</span>Cartões</button>
+      <button class="side-btn"        id="side-all"    onclick="setTab('all');closeSidebar()">   <span class="icon">📋</span>Gastos</button>
+      <button class="side-btn"        id="side-goals"  onclick="setTab('goals');closeSidebar()"> <span class="icon">🎯</span>Metas</button>
+      <button class="side-btn"        id="side-health" onclick="setTab('health');closeSidebar()"><span class="icon">📊</span>Saúde</button>
+      <hr class="side-divider"/>
+    </div>
 
     <!-- Rodapé da sidebar -->
     <div id="sidebar-bottom">
-      <hr class="side-divider"/>
       <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
       <button onclick="openBackup()" class="side-btn"><span class="icon">💾</span>Backup</button>
       <hr class="side-divider"/>
