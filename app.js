@@ -43,6 +43,23 @@ const fmtD=d=>new Date(d+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",
 const curM=()=>{const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;};
 const fmtMonth=m=>{if(!m)return"";const[y,mo]=m.split("-");return new Date(y,mo-1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});};
 
+
+// ── SAUDAÇÃO DINÂMICA NA TELA DE LOGIN ───────────────────────────────
+function renderLoginGreeting(){
+  const el=document.getElementById("login-greeting");if(!el)return;
+  const h=new Date().getHours();
+  const g=h<12?"Bom dia! ☀️":h<18?"Boa tarde! 🌤️":"Boa noite! 🌙";
+  const tips=[
+    "Tudo sob controle por aqui.",
+    "Vamos ver como está o orçamento?",
+    "Seu controle financeiro te espera.",
+    "Organizados juntos, chegam mais longe.",
+  ];
+  const tip=tips[new Date().getDate()%tips.length];
+  el.textContent=g+" "+tip;
+}
+renderLoginGreeting();
+
 // ── TOAST ─────────────────────────────────────────────────────────────
 let _toastT=null;
 function toast(msg,type="ok"){

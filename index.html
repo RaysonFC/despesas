@@ -20,38 +20,65 @@
 <!-- ══ LOGIN SCREEN ══════════════════════════════════════════════════ -->
 <div id="login-screen">
   <div style="text-align:center;max-width:360px;width:100%">
-    <p style="font-size:56px;margin-bottom:8px">💰</p>
-    <h1 style="font-size:28px;font-weight:800;color:#e8e8f4;margin-bottom:6px">Meu Orçamento</h1>
-    <p style="font-size:14px;color:#5a5a72;margin-bottom:28px">Controle financeiro do casal 👫</p>
+
+    <!-- LOGO -->
+    <div style="display:flex;justify-content:center;margin-bottom:20px">
+      <div style="position:relative;width:88px;height:88px">
+        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#00e5a0,#4d9fff,#00e5a0);animation:spin-slow 4s linear infinite;opacity:.3"></div>
+        <div style="position:absolute;inset:4px;border-radius:50%;background:#10101c;display:flex;align-items:center;justify-content:center">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="12" width="36" height="24" rx="5" fill="#00e5a0" opacity=".12"/>
+            <rect x="4" y="12" width="36" height="24" rx="5" stroke="#00e5a0" stroke-width="2"/>
+            <path d="M4 19h36" stroke="#00e5a0" stroke-width="1.5" opacity=".4"/>
+            <rect x="28" y="21" width="9" height="7" rx="3.5" fill="#00e5a0"/>
+            <circle cx="31.5" cy="24.5" r="1.5" fill="#080810"/>
+            <path d="M10 25h10" stroke="#4d9fff" stroke-width="2" stroke-linecap="round"/>
+            <path d="M10 29h6" stroke="#4d9fff" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+            <circle cx="33" cy="10" r="5" fill="#ffc94a"/>
+            <text x="33" y="14" text-anchor="middle" font-size="8" font-weight="900" fill="#080810">$</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes spin-slow{to{transform:rotate(360deg)}}</style>
+
+    <h1 style="font-size:26px;font-weight:800;color:#e8e8f4;margin-bottom:6px;letter-spacing:-.5px">Meu Orçamento</h1>
+    <p id="login-greeting" style="font-size:14px;color:#00e5a0;margin-bottom:4px;font-weight:600"></p>
+    <p style="font-size:11px;color:#2e2e46;margin-bottom:26px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700">Rayson &amp; Alessandra ♥</p>
 
     <!-- STEP 1: quem está entrando -->
     <div id="step-select">
-      <p style="font-size:12px;letter-spacing:1.5px;color:#5a5a72;font-weight:700;margin-bottom:16px">QUEM É VOCÊ?</p>
-      <div style="display:flex;flex-direction:column;gap:12px">
+      <p style="font-size:11px;letter-spacing:1.5px;color:#5a5a72;font-weight:700;margin-bottom:14px">QUEM É VOCÊ?</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+
         <button onclick="selectUser('rayson')"
-          style="display:flex;align-items:center;gap:16px;padding:18px 20px;background:#10101c;border:1px solid #22223a;border-radius:18px;cursor:pointer;text-align:left;transition:border-color .2s"
-          onmouseover="this.style.borderColor='#00e5a0'" onmouseout="this.style.borderColor='#22223a'">
-          <span style="font-size:32px">👨</span>
-          <div>
-            <p style="font-size:17px;font-weight:800;color:#e8e8f4">Rayson</p>
-            <p style="font-size:12px;color:#5a5a72;margin-top:2px">Entrar como Rayson</p>
+          style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:linear-gradient(135deg,#10101c,#1a1a2e);border:1px solid #22223a;border-radius:18px;cursor:pointer;text-align:left;transition:all .2s"
+          onmouseover="this.style.borderColor='#00e5a0';this.style.boxShadow='0 0 24px #00e5a018'"
+          onmouseout="this.style.borderColor='#22223a';this.style.boxShadow='none'">
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#00e5a022,#4d9fff18);border:2px solid #00e5a033;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">👨</div>
+          <div style="flex:1;text-align:left">
+            <p style="font-size:16px;font-weight:800;color:#e8e8f4;margin-bottom:2px">Rayson</p>
+            <p style="font-size:11px;color:#5a5a72">Entrar na minha conta</p>
           </div>
-          <span style="margin-left:auto;color:#5a5a72;font-size:20px">›</span>
+          <div style="width:26px;height:26px;border-radius:50%;background:#00e5a010;border:1px solid #00e5a030;display:flex;align-items:center;justify-content:center;color:#00e5a0;font-size:13px;flex-shrink:0">›</div>
         </button>
+
         <button onclick="selectUser('alessandra')"
-          style="display:flex;align-items:center;gap:16px;padding:18px 20px;background:#10101c;border:1px solid #22223a;border-radius:18px;cursor:pointer;text-align:left;transition:border-color .2s"
-          onmouseover="this.style.borderColor='#00e5a0'" onmouseout="this.style.borderColor='#22223a'">
-          <span style="font-size:32px">👩</span>
-          <div>
-            <p style="font-size:17px;font-weight:800;color:#e8e8f4">Alessandra</p>
-            <p style="font-size:12px;color:#5a5a72;margin-top:2px">Entrar como Alessandra</p>
+          style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:linear-gradient(135deg,#10101c,#1a1a2e);border:1px solid #22223a;border-radius:18px;cursor:pointer;text-align:left;transition:all .2s"
+          onmouseover="this.style.borderColor='#ff9a3c';this.style.boxShadow='0 0 24px #ff9a3c18'"
+          onmouseout="this.style.borderColor='#22223a';this.style.boxShadow='none'">
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#ff9a3c22,#c87af518);border:2px solid #ff9a3c33;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">👩</div>
+          <div style="flex:1;text-align:left">
+            <p style="font-size:16px;font-weight:800;color:#e8e8f4;margin-bottom:2px">Alessandra</p>
+            <p style="font-size:11px;color:#5a5a72">Entrar na minha conta</p>
           </div>
-          <span style="margin-left:auto;color:#5a5a72;font-size:20px">›</span>
+          <div style="width:26px;height:26px;border-radius:50%;background:#ff9a3c10;border:1px solid #ff9a3c30;display:flex;align-items:center;justify-content:center;color:#ff9a3c;font-size:13px;flex-shrink:0">›</div>
         </button>
+
       </div>
-      <div style="display:flex;gap:10px;margin-top:16px">
-        <button onclick="openSetup('rayson')" style="flex:1;padding:10px;background:none;border:1px solid #22223a;border-radius:12px;color:#5a5a72;font-size:12px;font-weight:600;cursor:pointer">👨 Rayson — 1º acesso</button>
-        <button onclick="openSetup('alessandra')" style="flex:1;padding:10px;background:none;border:1px solid #22223a;border-radius:12px;color:#5a5a72;font-size:12px;font-weight:600;cursor:pointer">👩 Alessandra — 1º acesso</button>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button onclick="openSetup('rayson')" style="flex:1;padding:9px;background:none;border:1px solid #22223a;border-radius:12px;color:#5a5a72;font-size:11px;font-weight:600;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#5a5a72'" onmouseout="this.style.borderColor='#22223a'">👨 Rayson — 1º acesso</button>
+        <button onclick="openSetup('alessandra')" style="flex:1;padding:9px;background:none;border:1px solid #22223a;border-radius:12px;color:#5a5a72;font-size:11px;font-weight:600;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#5a5a72'" onmouseout="this.style.borderColor='#22223a'">👩 Alessandra — 1º acesso</button>
       </div>
     </div>
 
