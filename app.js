@@ -2,12 +2,60 @@
 
 // ── DADOS ESTÁTICOS ───────────────────────────────────────────────────
 const THEMES={
-  dark:  {name:"Dark",  icon:"🌙",bg:"#080810",card:"#10101c",cardLight:"#1c1c2e",accent:"#00e5a0",danger:"#ff4d6d",warn:"#ffc94a",blue:"#4d9fff",text:"#e8e8f4",muted:"#5a5a72",border:"#22223a",navBg:"#0d0d1a",sidebar:"#0d0d1a"},
-  light: {name:"Light", icon:"☀️",bg:"#f0f2f8",card:"#ffffff",cardLight:"#eef0f7",accent:"#00b37e",danger:"#e53e5e",warn:"#c87800",blue:"#2b7de9",text:"#1a1a2e",muted:"#8888aa",border:"#dde0ee",navBg:"#ffffff",sidebar:"#e8eaf4"},
-  ocean: {name:"Ocean", icon:"🌊",bg:"#071829",card:"#0d2337",cardLight:"#163452",accent:"#00cfff",danger:"#ff6b6b",warn:"#ffd166",blue:"#7eb8f7",text:"#d6eeff",muted:"#4d7a99",border:"#1a4060",navBg:"#0d2337",sidebar:"#071829"},
-  sunset:{name:"Sunset",icon:"🌅",bg:"#1a0a1e",card:"#271030",cardLight:"#3d1a4e",accent:"#ff9a3c",danger:"#ff4d6d",warn:"#ffdc5e",blue:"#c87af5",text:"#f5e6ff",muted:"#8a5a9e",border:"#4a1f60",navBg:"#271030",sidebar:"#1a0a1e"},
-  forest:{name:"Forest",icon:"🌿",bg:"#071510",card:"#0e2018",cardLight:"#1a3428",accent:"#4cde80",danger:"#ff6b6b",warn:"#f0c040",blue:"#60c8a0",text:"#d4f5e0",muted:"#4a7a5a",border:"#1e3d2a",navBg:"#0e2018",sidebar:"#071510"},
-  rose:  {name:"Rose",  icon:"🌸",bg:"#fdf4f7",card:"#ffffff",cardLight:"#fce8ef",accent:"#e05c8a",danger:"#c0392b",warn:"#c87830",blue:"#8060c0",text:"#2d1020",muted:"#b080a0",border:"#f0c8d8",navBg:"#ffffff",sidebar:"#fce8ef"},
+  // ── DARK: referência — profundo, contrastado ──────────────────────────
+  dark:{
+    name:"Dark", icon:"🌙",
+    bg:"#080810", card:"#10101c", cardLight:"#1c1c2e",
+    accent:"#00e5a0", danger:"#ff4d6d", warn:"#ffc94a", blue:"#4d9fff",
+    text:"#e8e8f4", muted:"#6e6e8a", border:"#22223a",
+    navBg:"#0d0d1a", sidebar:"#0d0d1a",
+    cardShadow:"0 2px 16px #00000055",
+  },
+  // ── LIGHT: fundo acinzentado, cards branco com sombra real ────────────
+  light:{
+    name:"Light", icon:"☀️",
+    bg:"#e8eaf2", card:"#ffffff", cardLight:"#f2f4fb",
+    accent:"#0099ff", danger:"#e53e5e", warn:"#d97706", blue:"#2b7de9",
+    text:"#0f0f1a", muted:"#6b7280", border:"#d1d5e0",
+    navBg:"#ffffff", sidebar:"#f0f2f9",
+    cardShadow:"0 2px 12px #0000001a, 0 1px 3px #00000010",
+  },
+  // ── OCEAN: azul profundo, muito contraste, texto nítido ───────────────
+  ocean:{
+    name:"Ocean", icon:"🌊",
+    bg:"#050f1a", card:"#0a1e30", cardLight:"#0f2d47",
+    accent:"#00d4ff", danger:"#ff5f6d", warn:"#ffd166", blue:"#58a6ff",
+    text:"#e0f0ff", muted:"#6899b8", border:"#1a3a58",
+    navBg:"#0a1e30", sidebar:"#050f1a",
+    cardShadow:"0 2px 20px #000000aa",
+  },
+  // ── SUNSET: roxo profundo, laranjas quentes, sem apagado ─────────────
+  sunset:{
+    name:"Sunset", icon:"🌅",
+    bg:"#130818", card:"#1e0d2a", cardLight:"#2e1545",
+    accent:"#ff9a3c", danger:"#ff4d6d", warn:"#ffdc5e", blue:"#b47cf5",
+    text:"#f8eeff", muted:"#9a6fbf", border:"#3d1e5c",
+    navBg:"#1e0d2a", sidebar:"#130818",
+    cardShadow:"0 2px 20px #0000009a",
+  },
+  // ── FOREST: verde musgo escuro, texto nítido, sem muted lavado ────────
+  forest:{
+    name:"Forest", icon:"🌿",
+    bg:"#040d08", card:"#091410", cardLight:"#122018",
+    accent:"#3ddc84", danger:"#ff6b6b", warn:"#e8c840", blue:"#50c8a0",
+    text:"#d8f5e4", muted:"#5a9a72", border:"#1a3a28",
+    navBg:"#091410", sidebar:"#040d08",
+    cardShadow:"0 2px 20px #00000099",
+  },
+  // ── ROSE: fundo rosado, cards com sombra rosada, texto escuro nítido ──
+  rose:{
+    name:"Rose", icon:"🌸",
+    bg:"#f5e8ef", card:"#ffffff", cardLight:"#fce8f0",
+    accent:"#d63a75", danger:"#c0392b", warn:"#c87830", blue:"#7040b0",
+    text:"#1a0610", muted:"#8a4a6a", border:"#e8c0d0",
+    navBg:"#ffffff", sidebar:"#fce0ec",
+    cardShadow:"0 2px 12px #d63a7518, 0 1px 4px #00000012",
+  },
 };
 const BRANDS={
   "Visa":{color:"#1a1f71",text:"#fff",accent:"#f7a600",label:"VISA"},
@@ -110,7 +158,7 @@ function applyTheme(){
   let st=document.getElementById("dyn-style")||document.createElement("style");st.id="dyn-style";
   st.textContent=`
     ::-webkit-scrollbar-thumb{background:${t.border};}
-    .crd,#status-card{background:${t.card};border-color:${t.border};}
+    .crd,#status-card{background:${t.card};border-color:${t.border};box-shadow:${t.cardShadow||'none'};}
     .inp{background:${t.cardLight};border-color:${t.border};color:${t.text};}
     .inp:focus{border-color:${t.accent};}
     .inp.error{border-color:${t.danger}!important;}
