@@ -173,9 +173,28 @@ function renderSalaryTopbar(){
 // ── STATUS ────────────────────────────────────────────────────────────
 function renderStatus(){
   const t=T(),cm=curM();
-  // Sempre usa o mês atual para o status (ignora filtro aqui)
+  const sc=document.getElementById("status-card");if(!sc)return;
+
+  // ── ONBOARDING: salário ainda não configurado ───────────────────────
+  if(!S.salary&&!S.extra){
+    sc.innerHTML=`
+      <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 20px;gap:14px">
+        <div style="font-size:48px;line-height:1">💰</div>
+        <div>
+          <p style="font-size:17px;font-weight:800;margin-bottom:6px">Configure sua renda primeiro</p>
+          <p style="font-size:13px;color:${t.muted};line-height:1.6;max-width:320px;margin:0 auto">
+            Para acompanhar quanto vocês estão comprometendo do orçamento, informe o salário e a renda extra do casal.
+          </p>
+        </div>
+        <button onclick="openSalaryModal()" style="background:${t.accent};border:none;border-radius:14px;padding:13px 28px;font-size:14px;font-weight:800;color:#000;cursor:pointer;margin-top:4px">
+          ✏️ Informar renda agora
+        </button>
+      </div>`;
+    return;
+  }
+
+  // ── CARD NORMAL ───────────────────────────────────────────────────────
   const thisMonthExp=S.expenses.filter(e=>e.date?.startsWith(cm));
-  // Parcelas: só conta as do mês atual (startMonth <= curM e não quitadas)
   const thisMonthInst=S.installments.filter(i=>{
     if(i.paidInstallments>=i.installments)return false;
     if(!i.startMonth)return true;
@@ -184,9 +203,8 @@ function renderStatus(){
   const iT=thisMonthInst.reduce((s,i)=>s+i.installmentValue,0);
   const eT=thisMonthExp.reduce((s,e)=>s+e.amount,0);
   const totalIncome=S.salary+S.extra,tot=eT+iT,rem=totalIncome-tot;
-  const pct=Math.min((tot/(totalIncome||1))*100,100);
+  const pct=Math.min((tot/totalIncome)*100,100);
   const h=pct<50?{l:"Ótimo!",c:t.accent}:pct<75?{l:"Atenção",c:t.warn}:{l:"Crítico",c:t.danger};
-  const sc=document.getElementById("status-card");if(!sc)return;
   sc.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px">
     <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Total Comprometido <span style="color:${t.blue}">${fmtMonth(cm)}</span></p><p style="font-size:28px;font-weight:800;color:${t.danger}">${fmt(tot)}</p><p style="font-size:11px;color:${t.muted};margin-top:4px"><span style="color:${t.warn}">Parcelas: ${fmt(iT)}</span> &nbsp;·&nbsp; <span style="color:${t.blue}">Avulsos: ${fmt(eT)}</span></p></div>
     <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Disponível Livre</p><p style="font-size:28px;font-weight:800;color:${rem>=0?t.accent:t.danger}">${fmt(rem)}</p></div>
