@@ -1053,10 +1053,190 @@ function closeModal(id){document.getElementById(id).style.display="none";}
 
 function openThemes(){
   const t=T();
-  document.getElementById("theme-list").innerHTML=Object.entries(THEMES).map(([key,th])=>{const a=key===S.theme;return`<button onclick="setTheme('${key}')" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;width:100%;border:1px solid ${a?t.accent:t.border};background:${a?t.accent+"18":t.cardLight};cursor:pointer;margin-bottom:8px;text-align:left"><div style="display:flex;gap:4px;flex-shrink:0"><div style="width:22px;height:22px;border-radius:50%;background:${th.bg};border:2px solid ${th.border}"></div><div style="width:22px;height:22px;border-radius:50%;background:${th.card};border:2px solid ${th.border}"></div><div style="width:22px;height:22px;border-radius:50%;background:${th.accent}"></div></div><span style="font-size:22px">${th.icon}</span><span style="font-size:14px;font-weight:700;color:${a?t.accent:t.text};flex:1">${th.name}</span>${a?`<span style="font-size:12px;color:${t.accent};font-weight:700">✓ Ativo</span>`:""}</button>`;}).join("");
+  document.getElementById("theme-list").innerHTML=Object.entries(THEMES).map(([key,th])=>{
+    const a=key===S.theme;
+    return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <button onclick="setTheme('${key}')" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;flex:1;border:1px solid ${a?t.accent:t.border};background:${a?t.accent+"18":t.cardLight};cursor:pointer;text-align:left">
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <div style="width:22px;height:22px;border-radius:50%;background:${th.bg};border:2px solid ${th.border}"></div>
+          <div style="width:22px;height:22px;border-radius:50%;background:${th.card};border:2px solid ${th.border}"></div>
+          <div style="width:22px;height:22px;border-radius:50%;background:${th.accent}"></div>
+        </div>
+        <span style="font-size:22px">${th.icon}</span>
+        <span style="font-size:14px;font-weight:700;color:${a?t.accent:t.text};flex:1">${th.name}</span>
+        ${a?`<span style="font-size:12px;color:${t.accent};font-weight:700">✓ Ativo</span>`:""}
+      </button>
+      <button onclick="openThemeEditor('${key}')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:12px;padding:10px 13px;color:${t.muted};font-size:13px;cursor:pointer;flex-shrink:0" title="Editar cores">✏️</button>
+    </div>`;
+  }).join("");
   openModal("modal-themes");
 }
 function setTheme(key){S.theme=key;window.fbSaveTheme(key);closeModal("modal-themes");scheduleRender("house");}
+
+// ── EDITOR DE TEMA ────────────────────────────────────────────────────
+// Armazena os temas originais para poder restaurar
+const THEMES_DEFAULT = JSON.parse(JSON.stringify(THEMES));
+
+// Carrega customizações salvas no localStorage ao iniciar
+(function loadSavedThemes(){
+  try{
+    const saved=JSON.parse(localStorage.getItem("customThemes")||"{}");
+    Object.entries(saved).forEach(([key,overrides])=>{
+      if(THEMES[key]) Object.assign(THEMES[key],overrides);
+    });
+  }catch(e){}
+})();
+
+const THEME_FIELD_LABELS={
+  bg:       {label:"Fundo",         group:"Estrutura"},
+  sidebar:  {label:"Sidebar",       group:"Estrutura"},
+  card:     {label:"Card",          group:"Estrutura"},
+  cardLight:{label:"Card claro",    group:"Estrutura"},
+  border:   {label:"Borda",         group:"Estrutura"},
+  navBg:    {label:"Nav fundo",     group:"Estrutura"},
+  text:     {label:"Texto",         group:"Tipografia"},
+  muted:    {label:"Texto apagado", group:"Tipografia"},
+  accent:   {label:"Destaque",      group:"Cores"},
+  blue:     {label:"Azul",          group:"Cores"},
+  warn:     {label:"Aviso",         group:"Cores"},
+  danger:   {label:"Perigo",        group:"Cores"},
+};
+
+let _editingThemeKey=null;
+let _editorValues={};
+
+function openThemeEditor(key){
+  _editingThemeKey=key;
+  const th=THEMES[key];
+  _editorValues={...th};
+  const t=T();
+
+  document.getElementById("theme-editor-subtitle").textContent=
+    `Editando: ${th.icon} ${th.name}`;
+
+  // Renderiza os campos agrupados
+  const groups=["Estrutura","Tipografia","Cores"];
+  const fields=document.getElementById("theme-editor-fields");
+  fields.innerHTML="";
+
+  // Título de grupo
+  let lastGroup="";
+  Object.entries(THEME_FIELD_LABELS).forEach(([prop,meta])=>{
+    if(!th[prop])return;
+    if(meta.group!==lastGroup){
+      lastGroup=meta.group;
+      const sep=document.createElement("div");
+      sep.style.cssText=`grid-column:1/-1;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700;color:${t.muted};margin-top:6px;`;
+      sep.textContent=meta.group;
+      fields.appendChild(sep);
+    }
+    const wrap=document.createElement("label");
+    wrap.style.cssText=`display:flex;flex-direction:column;gap:5px;`;
+    wrap.innerHTML=`
+      <span style="font-size:12px;color:${t.muted};font-weight:600">${meta.label}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="color" value="${th[prop]}" data-prop="${prop}"
+          style="width:36px;height:36px;border-radius:8px;border:1px solid ${t.border};cursor:pointer;padding:2px;background:${t.cardLight}"
+          oninput="onThemeEditorChange(this)"/>
+        <input type="text" value="${th[prop]}" data-prop="${prop}" data-text="1"
+          class="inp" style="flex:1;padding:7px 10px;font-size:12px;font-family:monospace"
+          oninput="onThemeEditorChangeText(this)"/>
+      </div>`;
+    fields.appendChild(wrap);
+  });
+
+  updateThemeEditorPreview();
+  closeModal("modal-themes");
+  openModal("modal-theme-editor");
+}
+
+function onThemeEditorChange(el){
+  const prop=el.dataset.prop;
+  _editorValues[prop]=el.value;
+  // Sincroniza o input de texto
+  const twin=el.parentNode.querySelector('[data-text]');
+  if(twin)twin.value=el.value;
+  updateThemeEditorPreview();
+}
+
+function onThemeEditorChangeText(el){
+  const val=el.value.trim();
+  // Valida: deve ser hex válido
+  if(!/^#[0-9a-fA-F]{3,8}$/.test(val))return;
+  _editorValues[el.dataset.prop]=val;
+  // Sincroniza o color picker
+  const twin=el.parentNode.querySelector('[type=color]');
+  if(twin)twin.value=val;
+  updateThemeEditorPreview();
+}
+
+function updateThemeEditorPreview(){
+  const th=_editorValues;
+  const preview=document.getElementById("theme-editor-preview");
+  preview.style.cssText=`border-radius:14px;padding:14px;margin-bottom:18px;border:1px solid ${th.border};background:${th.card}`;
+  preview.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <p style="font-size:13px;font-weight:700;color:${th.text}">${THEMES[_editingThemeKey].icon} ${THEMES[_editingThemeKey].name}</p>
+      <span style="font-size:11px;background:${th.accent}22;color:${th.accent};padding:2px 8px;border-radius:6px;font-weight:700">Preview</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:${th.cardLight};border:1px solid ${th.border};border-radius:10px;padding:10px">
+        <p style="font-size:10px;color:${th.muted};margin-bottom:4px">Disponível</p>
+        <p style="font-size:16px;font-weight:800;color:${th.accent}">R$ 5.312,65</p>
+      </div>
+      <div style="background:${th.cardLight};border:1px solid ${th.border};border-radius:10px;padding:10px">
+        <p style="font-size:10px;color:${th.muted};margin-bottom:4px">Comprometido</p>
+        <p style="font-size:16px;font-weight:800;color:${th.danger}">R$ 37,35</p>
+      </div>
+    </div>
+    <div style="height:6px;background:${th.cardLight};border-radius:99px;overflow:hidden">
+      <div style="height:6px;width:15%;background:${th.accent};border-radius:99px"></div>
+    </div>
+    <p style="font-size:10px;color:${th.muted};margin-top:5px">0.7% comprometido · Ótimo!</p>`;
+}
+
+function saveThemeEditor(){
+  if(!_editingThemeKey)return;
+  // Aplica ao objeto THEMES em memória
+  Object.assign(THEMES[_editingThemeKey],_editorValues);
+  // Persiste no localStorage
+  try{
+    const saved=JSON.parse(localStorage.getItem("customThemes")||"{}");
+    saved[_editingThemeKey]={..._editorValues};
+    localStorage.setItem("customThemes",JSON.stringify(saved));
+  }catch(e){}
+  // Se o tema editado é o ativo, re-aplica imediatamente
+  if(S.theme===_editingThemeKey) scheduleRender("house");
+  toast("✅ Tema salvo!");
+  closeModal("modal-theme-editor");
+  openThemes();
+}
+
+function resetThemeEditor(){
+  if(!_editingThemeKey)return;
+  confirm2({
+    emoji:"↩️",
+    title:"Restaurar padrão?",
+    msg:`As cores de "${THEMES[_editingThemeKey].name}" voltarão ao original.`,
+    okLabel:"Restaurar",
+    okColor:T().warn,
+    ok:()=>{
+      // Remove do localStorage
+      try{
+        const saved=JSON.parse(localStorage.getItem("customThemes")||"{}");
+        delete saved[_editingThemeKey];
+        localStorage.setItem("customThemes",JSON.stringify(saved));
+      }catch(e){}
+      // Restaura em memória
+      Object.assign(THEMES[_editingThemeKey],THEMES_DEFAULT[_editingThemeKey]);
+      _editorValues={...THEMES[_editingThemeKey]};
+      if(S.theme===_editingThemeKey) scheduleRender("house");
+      toast("Tema restaurado!");
+      // Re-abre o editor com os valores originais
+      openThemeEditor(_editingThemeKey);
+    }
+  });
+}
 
 function openSalaryModal(){document.getElementById("salary-input").value=S.salary||"";document.getElementById("extra-input").value=S.extra||"";updateIncomePreview();openModal("modal-salary");}
 function updateIncomePreview(){const s=parseFloat(document.getElementById("salary-input").value)||0,e=parseFloat(document.getElementById("extra-input").value)||0;document.getElementById("total-income-preview").textContent="Total em conta: "+fmt(s+e);}
