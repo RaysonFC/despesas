@@ -386,20 +386,198 @@ function renderGoals(){
 }
 
 // ── HEALTH ────────────────────────────────────────────────────────────
+let _healthChart=null;
 function renderHealth(){
   const t=T(),fm=S.filterMonth;
   const filtExp=fm?S.expenses.filter(e=>e.date?.startsWith(fm)):S.expenses;
   const iT=S.installments.reduce((s,i)=>s+i.installmentValue,0),eT=filtExp.reduce((s,e)=>s+e.amount,0);
   const totalIncome=S.salary+S.extra,tot=eT+iT,rem=totalIncome-tot;
   const pct=Math.min((tot/(totalIncome||1))*100,100);
-  const h=pct<50?{e:"😊",l:"Ótimo!",c:t.accent,m:"Vocês estão economizando bem. Continue assim!"}:pct<75?{e:"😐",l:"Atenção",c:t.warn,m:"Gastos moderados. Fiquem de olho nas parcelas."}:{e:"😰",l:"Crítico",c:t.danger,m:"Gastos muito altos! Revisem urgente o orçamento."};
+  const h=pct<50?{e:"😊",l:"Ótimo!",c:t.accent}:pct<75?{e:"😐",l:"Atenção",c:t.warn}:{e:"😰",l:"Crítico",c:t.danger};
+
+  // Categorias
   let catBars="";
-  Object.keys(CATS).forEach(cat=>{const cT=filtExp.filter(e=>e.cat===cat).reduce((s,e)=>s+e.amount,0);if(!cT)return;const cPct=(cT/(tot||1))*100;catBars+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px">${CATS[cat]} ${cat}</span><span style="font-size:12px;font-weight:600">${fmt(cT)} <span style="color:${t.muted}">(${cPct.toFixed(0)}%)</span></span></div><div class="prog-bg" style="height:6px"><div class="prog-fill" style="width:${cPct}%;background:${t.accent};opacity:.85"></div></div></div>`;});
-  const mTotals={};S.expenses.forEach(e=>{const m=e.date?.slice(0,7);if(m)mTotals[m]=(mTotals[m]||0)+e.amount;});
-  const sortedM=Object.entries(mTotals).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6).reverse();
-  const maxV=Math.max(...sortedM.map(x=>x[1]),1);
-  let chartH="";if(sortedM.length>1){chartH=`<p class="sec">Gastos por Mês</p><div class="crd" style="padding:20px;margin-bottom:20px"><div style="display:flex;align-items:flex-end;gap:8px;height:100px">${sortedM.map(([m,v])=>{const hh=Math.max((v/maxV)*80,4),act=fm===m;return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer" onclick="setFilter('${m}')"><span style="font-size:9px;color:${t.muted};font-weight:600;text-align:center">${fmt(v).replace("R$","").trim()}</span><div style="width:100%;border-radius:6px 6px 0 0;background:${act?t.accent:t.blue}${act?"":"88"};height:${hh}px"></div><span style="font-size:9px;color:${act?t.accent:t.muted};font-weight:700">${m.slice(5)}</span></div>`;}).join("")}</div>${fm?`<div style="text-align:center;margin-top:10px"><button onclick="setFilter('')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:5px 14px;color:${t.muted};font-size:12px">✕ Limpar filtro</button></div>`:""}</div>`;}
-  document.getElementById("tab-health").innerHTML=`<div class="grid-2" style="align-items:start"><div>${[{l:"Salário",v:fmt(S.salary),c:t.accent},{l:"Extra (Caixa)",v:fmt(S.extra),c:t.blue},{l:"Total em Conta",v:fmt(S.salary+S.extra),c:t.accent},{l:"Gastos Avulsos",v:fmt(eT),c:t.blue},{l:"Parcelas/mês",v:fmt(iT),c:t.warn},{l:"Total Comprometido",v:fmt(tot),c:t.danger},{l:"Dinheiro Livre",v:fmt(rem),c:rem>=0?t.accent:t.danger}].map(s=>`<div class="crd" style="padding:16px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><p style="font-size:13px;color:${t.muted}">${s.l}</p><p style="font-size:20px;font-weight:800;color:${s.c}">${s.v}</p></div>`).join("")}</div><div>${chartH}<p class="sec">Gastos por Categoria</p><div class="crd" style="padding:20px;margin-bottom:20px">${catBars||`<p style="color:${t.muted};font-size:13px">Nenhum gasto registrado.</p>`}</div>${S.installments.length?`<p class="sec">Resumo das Dívidas</p>${S.installments.map(i=>{const prog=(i.paidInstallments/i.installments)*100;return`<div class="crd" style="padding:16px 20px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><p style="font-size:13px;font-weight:600">${i.desc}</p><p style="font-size:13px;font-weight:700;color:${t.danger}">${fmt((i.installments-i.paidInstallments)*i.installmentValue)} restante</p></div><div class="prog-bg" style="height:5px"><div class="prog-fill" style="width:${prog}%;background:${t.accent}"></div></div><p style="font-size:10px;color:${t.muted};margin-top:5px">${i.paidInstallments} de ${i.installments} parcelas pagas</p></div>`;}).join("")}`:""}${window._houseMembers&&Object.keys(window._houseMembers).length>1?`<p class="sec">Membros da Casa 👫</p><div class="crd" style="padding:16px 20px">${Object.entries(window._houseMembers).map(([uid,name])=>`<div class="row"><div style="width:36px;height:36px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#000;flex-shrink:0">${(name||"?")[0].toUpperCase()}</div><p style="font-size:14px;font-weight:600">${name}</p></div>`).join("")}</div>`:""}</div></div>`;
+  Object.keys(CATS).forEach(cat=>{
+    const cT=filtExp.filter(e=>e.cat===cat).reduce((s,e)=>s+e.amount,0);
+    if(!cT)return;
+    const cPct=(cT/(tot||1))*100;
+    catBars+=`<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:13px">${CATS[cat]} ${cat}</span>
+        <span style="font-size:12px;font-weight:700">${fmt(cT)} <span style="color:${t.muted};font-weight:400">(${cPct.toFixed(0)}%)</span></span>
+      </div>
+      <div class="prog-bg" style="height:7px;border-radius:99px">
+        <div class="prog-fill" style="width:${cPct}%;background:linear-gradient(90deg,${t.blue},${t.accent});border-radius:99px"></div>
+      </div>
+    </div>`;
+  });
+
+  // Dados para o Chart.js
+  const mTotals={};
+  S.expenses.forEach(e=>{const m=e.date?.slice(0,7);if(m)mTotals[m]=(mTotals[m]||0)+e.amount;});
+  const sortedM=Object.entries(mTotals).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+
+  const chartSection=sortedM.length>0?`
+    <p class="sec">Gastos por Mês</p>
+    <div class="crd" style="padding:20px;margin-bottom:20px">
+      <canvas id="health-chart" style="width:100%;max-height:200px"></canvas>
+      ${fm?`<div style="text-align:center;margin-top:14px"><button onclick="setFilter('')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:5px 14px;color:${t.muted};font-size:12px">✕ Limpar filtro</button></div>`:""}
+    </div>`:"";
+
+  document.getElementById("tab-health").innerHTML=`
+    <div class="grid-2" style="align-items:start">
+      <div>
+        ${[
+          {l:"Salário",        v:fmt(S.salary),          c:t.accent},
+          {l:"Extra (Caixa)",   v:fmt(S.extra),           c:t.blue},
+          {l:"Total em Conta",  v:fmt(S.salary+S.extra),  c:t.accent},
+          {l:"Gastos Avulsos",  v:fmt(eT),                c:t.blue},
+          {l:"Parcelas/mês",    v:fmt(iT),                c:t.warn},
+          {l:"Total Comprometido",v:fmt(tot),             c:t.danger},
+          {l:"Dinheiro Livre",  v:fmt(rem),               c:rem>=0?t.accent:t.danger},
+        ].map(s=>`<div class="crd" style="padding:16px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+          <p style="font-size:13px;color:${t.muted}">${s.l}</p>
+          <p style="font-size:20px;font-weight:800;color:${s.c}">${s.v}</p>
+        </div>`).join("")}
+      </div>
+      <div>
+        ${chartSection}
+        <p class="sec">Gastos por Categoria</p>
+        <div class="crd" style="padding:20px;margin-bottom:20px">
+          ${catBars||`<p style="color:${t.muted};font-size:13px">Nenhum gasto registrado.</p>`}
+        </div>
+        ${S.installments.length?`
+          <p class="sec">Resumo das Dívidas</p>
+          ${S.installments.map(i=>{
+            const prog=(i.paidInstallments/i.installments)*100;
+            return`<div class="crd" style="padding:16px 20px;margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <p style="font-size:13px;font-weight:600">${i.desc}</p>
+                <p style="font-size:13px;font-weight:700;color:${t.danger}">${fmt((i.installments-i.paidInstallments)*i.installmentValue)} restante</p>
+              </div>
+              <div class="prog-bg" style="height:5px">
+                <div class="prog-fill" style="width:${prog}%;background:${t.accent}"></div>
+              </div>
+              <p style="font-size:10px;color:${t.muted};margin-top:5px">${i.paidInstallments} de ${i.installments} parcelas pagas</p>
+            </div>`;
+          }).join("")}`:""}
+        ${window._houseMembers&&Object.keys(window._houseMembers).length>1?`
+          <p class="sec">Membros da Casa 👫</p>
+          <div class="crd" style="padding:16px 20px">
+            ${Object.entries(window._houseMembers).map(([uid,name])=>`
+              <div class="row">
+                <div style="width:36px;height:36px;border-radius:50%;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#000;flex-shrink:0">${(name||"?")[0].toUpperCase()}</div>
+                <p style="font-size:14px;font-weight:600">${name}</p>
+              </div>`).join("")}
+          </div>`:""}
+      </div>
+    </div>`;
+
+  // ── Renderiza Chart.js ─────────────────────────────────────────────
+  if(sortedM.length>0) _buildHealthChart(sortedM, t, fm);
+}
+
+function _buildHealthChart(sortedM, t, fm){
+  // Destrói instância anterior se existir
+  if(_healthChart){try{_healthChart.destroy();}catch(e){}_healthChart=null;}
+
+  const canvas=document.getElementById("health-chart");
+  if(!canvas)return;
+
+  const labels=sortedM.map(([m])=>{
+    const [y,mo]=m.split("-");
+    return new Date(+y,+mo-1).toLocaleDateString("pt-BR",{month:"short",year:"2-digit"});
+  });
+  const values=sortedM.map(([,v])=>v);
+  const activeIdx=fm?sortedM.findIndex(([m])=>m===fm):-1;
+
+  const barColors=sortedM.map(([m],i)=>{
+    if(m===fm)return t.accent;
+    return t.blue+"bb";
+  });
+  const barHover=sortedM.map(([m])=>m===fm?t.accent:t.blue);
+
+  const load=()=>{
+    const ctx=canvas.getContext("2d");
+    _healthChart=new Chart(ctx,{
+      type:"bar",
+      data:{
+        labels,
+        datasets:[{
+          data:values,
+          backgroundColor:barColors,
+          hoverBackgroundColor:barHover,
+          borderRadius:8,
+          borderSkipped:false,
+          borderWidth:0,
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:true,
+        aspectRatio:2.4,
+        onClick:(e,els)=>{
+          if(els.length){const idx=els[0].index;setFilter(sortedM[idx][0]);}
+        },
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:t.card,
+            borderColor:t.border,
+            borderWidth:1,
+            titleColor:t.muted,
+            bodyColor:t.text,
+            titleFont:{size:11,weight:"600"},
+            bodyFont:{size:14,weight:"800"},
+            padding:12,
+            cornerRadius:12,
+            displayColors:false,
+            callbacks:{
+              title:items=>{
+                const [m]=sortedM[items[0].dataIndex];
+                const [y,mo]=m.split("-");
+                return new Date(+y,+mo-1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+              },
+              label:item=>fmt(item.raw),
+              afterLabel:item=>{
+                const income=S.salary+S.extra;
+                if(!income)return"";
+                return(item.raw/income*100).toFixed(1)+"% da renda";
+              }
+            }
+          }
+        },
+        scales:{
+          x:{
+            grid:{display:false},
+            border:{display:false},
+            ticks:{color:t.muted,font:{size:11,weight:"600"}},
+          },
+          y:{
+            grid:{color:t.border+"44",drawBorder:false},
+            border:{display:false,dash:[4,4]},
+            ticks:{
+              color:t.muted,
+              font:{size:10},
+              callback:v=>v>=1000?(v/1000).toFixed(0)+"k":""+v,
+              maxTicksLimit:5,
+            },
+          }
+        },
+        animation:{duration:600,easing:"easeOutQuart"},
+      }
+    });
+  };
+
+  // Carrega Chart.js se ainda não estiver disponível
+  if(window.Chart){
+    load();
+  } else {
+    const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js";
+    s.onload=load;
+    document.head.appendChild(s);
+  }
 }
 
 // ── ACTIONS ───────────────────────────────────────────────────────────
