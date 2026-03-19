@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="icon-192x192.png"/>
   <link rel="icon" type="image/png" href="icon-96x96.png"/>
   <link rel="stylesheet" href="style.css"/>
-  <script src="app.js"></script>
+  <script src="app.js" defer></script>
   <script type="module" src="firebase.js"></script>
 </head>
 <body>
@@ -44,6 +44,15 @@
 
     <h1 style="font-size:26px;font-weight:800;color:#e8e8f4;margin-bottom:6px;letter-spacing:-.5px">Meu Orçamento</h1>
     <p id="login-greeting" style="font-size:14px;color:#00e5a0;margin-bottom:4px;font-weight:600"></p>
+    <script>
+      (function(){
+        var h=new Date().getHours();
+        var g=h<12?"Bom dia! ☀️":h<18?"Boa tarde! 🌤️":"Boa noite! 🌙";
+        var tips=["Tudo sob controle por aqui.","Vamos ver como está o orçamento?","Seu controle financeiro te espera.","Organizados juntos, chegam mais longe."];
+        var tip=tips[new Date().getDate()%tips.length];
+        document.getElementById("login-greeting").textContent=g+" "+tip;
+      })();
+    </script>
     <p style="font-size:11px;color:#2e2e46;margin-bottom:26px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700">Rayson &amp; Alessandra ♥</p>
 
     <!-- STEP 1: quem está entrando -->
