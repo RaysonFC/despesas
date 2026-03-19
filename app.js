@@ -510,14 +510,44 @@ function saveGoal(){
     window.fbAdd("goals",data).then(()=>{toast("🎯 Meta criada!");closeModal("modal-goal");}).catch(e=>toast("Erro: "+e.message,"err"));
   }
 }
+let _depositGoalId=null;
 function depositGoal(id){
   const g=S.goals.find(x=>x.id===id);if(!g)return;
-  const val=prompt(`💰 Quanto depositar na meta "${g.name}"?\nGuardado atual: ${fmt(g.saved)}`);
-  if(!val)return;const amount=parseFloat(val);
-  if(isNaN(amount)||amount<=0){toast("Valor inválido","err");return;}
+  _depositGoalId=id;
+  const t=T();
+  const pct=Math.min((g.saved/(g.target||1))*100,100);
+  const rem=Math.max(0,g.target-g.saved);
+  document.getElementById("deposit-emoji").textContent=g.emoji||"🎯";
+  document.getElementById("deposit-goal-name").textContent=g.name;
+  document.getElementById("deposit-saved").textContent=fmt(g.saved);
+  document.getElementById("deposit-target").textContent=fmt(g.target);
+  document.getElementById("deposit-rem").textContent=fmt(rem);
+  const bar=document.getElementById("deposit-bar");
+  bar.style.width=pct+"%";
+  bar.style.background=`linear-gradient(90deg,${t.blue},${t.accent})`;
+  document.getElementById("deposit-bar-bg").style.background=t.cardLight;
+  document.getElementById("deposit-amount").value="";
+  document.getElementById("deposit-amount").style.borderColor=t.border;
+  const sugs=[50,100,200,500].filter(v=>v<rem);
+  if(rem>0)sugs.push(Math.round(rem));
+  const chips=document.getElementById("deposit-chips");
+  chips.innerHTML=sugs.slice(0,4).map(v=>`<button class="chip" onclick="document.getElementById('deposit-amount').value=${v};this.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));this.classList.add('active')" style="font-size:12px">${fmt(v)}</button>`).join("");
+  openModal("modal-deposit");
+  setTimeout(()=>document.getElementById("deposit-amount").focus(),120);
+}
+function confirmDeposit(){
+  const g=S.goals.find(x=>x.id===_depositGoalId);if(!g)return;
+  const aEl=document.getElementById("deposit-amount");
+  const amount=parseFloat(aEl.value);
+  if(isNaN(amount)||amount<=0){
+    aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);
+    toast("Informe um valor válido!","err");return;
+  }
   const newSaved=Math.min(g.saved+amount,g.target);
-  window.fbUpdate("goals",id,{saved:newSaved}).then(()=>{
-    if(newSaved>=g.target)toast(`🎉 Meta "${g.name}" concluída!`);else toast(`💰 ${fmt(amount)} depositado!`);
+  window.fbUpdate("goals",_depositGoalId,{saved:newSaved}).then(()=>{
+    closeModal("modal-deposit");
+    if(newSaved>=g.target)toast(`🎉 Meta "${g.name}" concluída!`);
+    else toast(`💰 ${fmt(amount)} depositado na meta!`);
   }).catch(e=>toast("Erro: "+e.message,"err"));
 }
 

@@ -410,5 +410,40 @@
   </div>
 </div>
 
+
+<!-- ══ MODAL DEPOSITAR META ════════════════════════════════════════ -->
+<div id="modal-deposit" class="modal-bg" style="display:none" onclick="closeModal('modal-deposit')">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <p style="font-weight:700;font-size:18px">💰 Depositar na Meta</p>
+      <button onclick="closeModal('modal-deposit')" class="btn-sm">✕</button>
+    </div>
+    <!-- Info da meta -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span id="deposit-emoji" style="font-size:36px"></span>
+      <div>
+        <p id="deposit-goal-name" style="font-size:16px;font-weight:800;margin-bottom:2px"></p>
+        <p style="font-size:12px;opacity:.55">Meta: <span id="deposit-target"></span></p>
+      </div>
+    </div>
+    <!-- Barra de progresso -->
+    <div id="deposit-bar-bg" style="border-radius:99px;overflow:hidden;height:8px;margin-bottom:10px">
+      <div id="deposit-bar" style="height:8px;border-radius:99px;transition:width .4s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:18px">
+      <span>Guardado: <strong id="deposit-saved"></strong></span>
+      <span>Faltam: <strong id="deposit-rem"></strong></span>
+    </div>
+    <!-- Sugestões rápidas -->
+    <p class="sec">VALOR RÁPIDO</p>
+    <div id="deposit-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+    <!-- Input -->
+    <p class="sec">OU DIGITE O VALOR</p>
+    <input class="inp" type="number" id="deposit-amount" placeholder="R$ 0,00" style="margin-bottom:16px;font-size:18px;font-weight:700"
+      onkeydown="if(event.key==='Enter')confirmDeposit()"/>
+    <button class="btn-p" onclick="confirmDeposit()">✓ Confirmar depósito</button>
+  </div>
+</div>
+
 </body>
 </html>
