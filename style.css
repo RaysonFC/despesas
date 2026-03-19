@@ -51,7 +51,7 @@ button{cursor:pointer;}
   border-bottom:1px solid #22223a22;
   margin-bottom:20px;
 }
-#topbar-left{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+#topbar-left{display:flex;align-items:flex-start;gap:10px;flex-shrink:0;}
 #topbar h1{font-size:24px;font-weight:800;line-height:1.1;}
 #topbar .sub{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;margin-bottom:3px;}
 #topbar-right{
@@ -129,9 +129,9 @@ button{cursor:pointer;}
   /* Topbar mobile: oculta botão Tema (fica no menu) */
   #theme-btn-top{display:none!important;}
 
-  #ham-btn{display:flex;}
+  #ham-btn{display:flex;align-self:flex-start;margin-top:2px;}
   #bottom-nav{display:flex;}
-  #topbar{padding:14px 14px 0;}
+  #topbar{padding:10px 14px 0;}
   #topbar h1{font-size:20px;}
   #content{padding:0 14px 76px;}
   .grid-2,.grid-3{grid-template-columns:1fr;}
