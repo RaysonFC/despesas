@@ -399,6 +399,7 @@ function showAppScreen() {
   setTab("home");
   updateUserBadge();
   if(window._checkAutoBackupOnLoad) window._checkAutoBackupOnLoad();
+  if(window._checkNotificationsOnLoad) window._checkNotificationsOnLoad();
 }
 function showLoginLoading(v) {
   const btn = document.getElementById("login-btn");

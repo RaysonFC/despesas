@@ -170,14 +170,14 @@ function _flush(){
   _dirty   = new Set();
 
   if(d.has("theme"))  applyTheme();
-  if(d.has("salary")) { renderSalarySidebar(); renderSalaryTopbar(); }
+  if(d.has("salary")) { renderSalarySidebar(); renderSalaryTopbar(); renderNotifSettings(); }
   if(d.has("status")) {
     renderStatus();
     const sc=document.getElementById("status-card");
     if(sc){sc.classList.remove("tab-enter");void sc.offsetWidth;sc.classList.add("tab-enter");}
   }
   if(d.has("tab"))    renderTab(S.currentTab);
-  if(d.has("badge"))  updateUserBadge();
+  if(d.has("badge"))  { updateUserBadge(); renderNotifSettings(); }
 }
 
 // Mantém compatibilidade — qualquer chamada a renderAll() ainda funciona
@@ -1100,6 +1100,124 @@ window._checkAutoBackupOnLoad = ()=>{
     if(S.expenses.length>0||S.installments.length>0) checkAutoBackup();
   }, 5000);
 };
+
+// ── NOTIFICAÇÕES DE VENCIMENTO ────────────────────────────────────────
+async function initNotifications(){
+  if(!("Notification" in window)||!navigator.serviceWorker) return false;
+  if(Notification.permission==="granted") return true;
+  if(Notification.permission==="denied")  return false;
+  const perm = await Notification.requestPermission();
+  return perm==="granted";
+}
+
+async function _swReady(){
+  if(!navigator.serviceWorker) return null;
+  try{ return await navigator.serviceWorker.ready; }catch{ return null; }
+}
+
+// Envia uma notificação via SW (funciona mesmo com app em background)
+async function _notify(title, body, tag){
+  const reg = await _swReady();
+  if(!reg) return;
+  reg.active?.postMessage({ type:"NOTIFY_INSTALLMENT", title, body, tag });
+}
+
+// Verifica parcelas e emite notificações para as que vencem em breve
+async function checkInstallmentNotifications(){
+  if(Notification.permission !== "granted") return;
+  if(!S.installments.length) return;
+
+  const today     = new Date();
+  const todayDay  = today.getDate();
+  const todayMonth= `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;
+  const alerted   = JSON.parse(localStorage.getItem("notif-alerted")||"{}");
+  const newAlerts = {...alerted};
+
+  for(const i of S.installments){
+    // Ignora quitadas
+    if(i.paidInstallments >= i.installments) continue;
+    // Ignora sem dia de vencimento
+    if(!i.dueDay) continue;
+    // Ignora parcelas que ainda não começaram
+    if(i.startMonth && i.startMonth > todayMonth) continue;
+
+    const daysUntil = i.dueDay - todayDay;
+    const alertKey  = `${i.id}-${todayMonth}`;
+
+    // Já notificou esse mês? pula
+    if(alerted[alertKey]) continue;
+
+    if(daysUntil < 0){
+      // Atrasada
+      await _notify(
+        `⚠️ Parcela atrasada!`,
+        `${i.desc} venceu dia ${i.dueDay}. ${fmt(i.installmentValue)} em aberto.`,
+        alertKey
+      );
+      newAlerts[alertKey] = "overdue";
+    } else if(daysUntil <= 3){
+      // Vence em até 3 dias
+      const when = daysUntil===0 ? "hoje" : daysUntil===1 ? "amanhã" : `em ${daysUntil} dias`;
+      await _notify(
+        `📅 Parcela vence ${when}`,
+        `${i.desc} — ${fmt(i.installmentValue)} — dia ${i.dueDay}.`,
+        alertKey
+      );
+      newAlerts[alertKey] = "soon";
+    }
+  }
+
+  localStorage.setItem("notif-alerted", JSON.stringify(newAlerts));
+}
+
+// Limpa alertas de meses anteriores do localStorage
+function _pruneOldAlerts(){
+  const cur = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}`;
+  const stored = JSON.parse(localStorage.getItem("notif-alerted")||"{}");
+  const pruned = {};
+  Object.keys(stored).forEach(k=>{ if(k.includes(cur)) pruned[k]=stored[k]; });
+  localStorage.setItem("notif-alerted", JSON.stringify(pruned));
+}
+
+// Chamado pelo firebase.js ao entrar no app (após dados carregados)
+window._checkNotificationsOnLoad = ()=>{
+  setTimeout(async ()=>{
+    _pruneOldAlerts();
+    // Se já tem permissão, checa direto
+    if(Notification.permission==="granted"){
+      await checkInstallmentNotifications();
+    }
+  }, 3000);
+};
+
+// Renderiza o bloco de configuração de notificações na sidebar
+function renderNotifSettings(){
+  const el=document.getElementById("notif-settings");if(!el)return;
+  const t=T();
+  const perm=("Notification" in window)?Notification.permission:"unsupported";
+  const granted=perm==="granted";
+  const denied=perm==="denied";
+
+  el.innerHTML=`
+    <div style="padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
+      <p style="font-size:10px;color:${t.muted};margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;font-weight:700">Notificações</p>
+      ${denied
+        ? `<p style="font-size:11px;color:${t.danger};line-height:1.5">Bloqueadas pelo navegador. Habilite nas configurações do site.</p>`
+        : perm==="unsupported"
+        ? `<p style="font-size:11px;color:${t.muted}">Não suportado neste navegador.</p>`
+        : granted
+        ? `<div style="display:flex;align-items:center;gap:8px">
+             <span style="font-size:18px">🔔</span>
+             <div style="flex:1">
+               <p style="font-size:12px;font-weight:700;color:${t.accent}">Ativas</p>
+               <p style="font-size:10px;color:${t.muted}">Aviso 3 dias antes do vencimento</p>
+             </div>
+             <button onclick="checkInstallmentNotifications().then(()=>toast('✅ Notificações verificadas!'))" style="background:${t.accent}18;border:1px solid ${t.accent}33;border-radius:8px;padding:5px 10px;color:${t.accent};font-size:11px;font-weight:700;cursor:pointer">Testar</button>
+           </div>`
+        : `<button onclick="initNotifications().then(ok=>{if(ok){renderNotifSettings();checkInstallmentNotifications();}else toast('Permissão negada.','err');})" style="width:100%;background:${t.accent};border:none;border-radius:10px;padding:10px;color:#000;font-weight:800;font-size:13px;cursor:pointer">🔔 Ativar notificações</button>`
+      }
+    </div>`;
+}
 
 
 // Expõe _auth para updateUserBadge

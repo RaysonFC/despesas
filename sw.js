@@ -82,4 +82,51 @@ self.addEventListener('fetch', event => {
 // ── MENSAGEM: força atualização ───────────────────────────────────────
 self.addEventListener('message', event => {
   if (event.data === 'skipWaiting') self.skipWaiting();
+
+  // Dispara notificação local solicitada pelo app
+  if (event.data?.type === 'NOTIFY_INSTALLMENT') {
+    const { title, body, tag } = event.data;
+    self.registration.showNotification(title, {
+      body,
+      tag,
+      icon:  '/despesas/icon-192x192.png',
+      badge: '/despesas/icon-96x96.png',
+      vibrate: [200, 100, 200],
+      data: { url: '/despesas/' },
+      actions: [
+        { action: 'open',    title: 'Ver parcelas' },
+        { action: 'dismiss', title: 'Dispensar'    },
+      ],
+    });
+  }
+});
+
+// ── PUSH: notificação vinda do servidor (futuro) ──────────────────────
+self.addEventListener('push', event => {
+  if (!event.data) return;
+  const d = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(d.title || 'Meu Orçamento', {
+      body:    d.body  || '',
+      icon:    '/despesas/icon-192x192.png',
+      badge:   '/despesas/icon-96x96.png',
+      tag:     d.tag   || 'meuorcamento',
+      data:    { url: d.url || '/despesas/' },
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+// ── CLICK NA NOTIFICAÇÃO ──────────────────────────────────────────────
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  if (event.action === 'dismiss') return;
+  const url = event.notification.data?.url || '/despesas/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const existing = list.find(c => c.url.includes('/despesas/'));
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    })
+  );
 });
