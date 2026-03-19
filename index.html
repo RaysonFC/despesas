@@ -368,7 +368,10 @@
     <input class="inp" id="goal-name" placeholder="Nome da meta (ex: Viagem, Notebook)" style="margin-bottom:10px"/>
     <input class="inp" type="number" id="goal-target" placeholder="Valor alvo (R$)" style="margin-bottom:10px" oninput="updateGoalPreview()"/>
     <input class="inp" type="number" id="goal-saved" placeholder="Já guardado (R$)" style="margin-bottom:10px" oninput="updateGoalPreview()"/>
-    <input class="inp" type="month" id="goal-deadline" style="margin-bottom:14px"/>
+    <input class="inp" type="month" id="goal-deadline" style="margin-bottom:10px"/>
+    <p class="sec" style="margin-top:4px">CONTRIBUIÇÃO AUTOMÁTICA MENSAL</p>
+    <input class="inp" type="number" id="goal-monthly" placeholder="Ex: 200 (deixe vazio para desativar)" style="margin-bottom:6px" oninput="updateGoalPreview()"/>
+    <p id="goal-monthly-hint" style="font-size:11px;margin-bottom:14px;opacity:.6;line-height:1.5">Todo mês o valor será descontado do disponível livre e adicionado à meta automaticamente.</p>
     <div id="goal-preview" style="display:none;border-radius:14px;padding:14px;margin-bottom:14px;text-align:center"></div>
     <button class="btn-p" onclick="saveGoal()" id="goal-save-btn">Adicionar Meta</button>
   </div>

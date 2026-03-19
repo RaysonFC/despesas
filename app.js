@@ -517,11 +517,14 @@ function renderStatus(){
   });
   const iT=thisMonthInst.reduce((s,i)=>s+i.installmentValue,0);
   const eT=thisMonthExp.reduce((s,e)=>s+e.amount,0);
-  const totalIncome=S.salary+S.extra,tot=eT+iT,rem=totalIncome-tot;
+  // Contribuições automáticas de metas ativas (não concluídas)
+  const gT=S.goals.filter(g=>g.monthlyContrib>0&&g.saved<g.target)
+                  .reduce((s,g)=>s+g.monthlyContrib,0);
+  const totalIncome=S.salary+S.extra,tot=eT+iT+gT,rem=totalIncome-tot;
   const pct=Math.min((tot/totalIncome)*100,100);
   const h=pct<50?{l:"Ótimo!",c:t.accent}:pct<75?{l:"Atenção",c:t.warn}:{l:"Crítico",c:t.danger};
   sc.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px">
-    <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Total Comprometido <span style="color:${t.blue}">${fmtMonth(cm)}</span></p><p style="font-size:28px;font-weight:800;color:${t.danger}">${fmt(tot)}</p><p style="font-size:11px;color:${t.muted};margin-top:4px"><span style="color:${t.warn}">Parcelas: ${fmt(iT)}</span> &nbsp;·&nbsp; <span style="color:${t.blue}">Avulsos: ${fmt(eT)}</span></p></div>
+    <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Total Comprometido <span style="color:${t.blue}">${fmtMonth(cm)}</span></p><p style="font-size:28px;font-weight:800;color:${t.danger}">${fmt(tot)}</p><p style="font-size:11px;color:${t.muted};margin-top:4px"><span style="color:${t.warn}">Parcelas: ${fmt(iT)}</span> &nbsp;·&nbsp; <span style="color:${t.blue}">Avulsos: ${fmt(eT)}</span>${gT>0?` &nbsp;·&nbsp; <span style="color:${t.accent}">Metas: ${fmt(gT)}</span>`:""}</p></div>
     <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Disponível Livre</p><p style="font-size:28px;font-weight:800;color:${rem>=0?t.accent:t.danger}">${fmt(rem)}</p></div>
     <div style="display:flex;flex-direction:column;justify-content:center;gap:8px">
       <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:${t.muted}">${pct.toFixed(1)}% do salário</span><span style="font-weight:800;color:${h.c}">${h.l}</span></div>
@@ -693,9 +696,22 @@ function renderGoals(){
     html+=`<div class="grid-3">`;
     S.goals.forEach(g=>{
       const pct=Math.min((g.saved/(g.target||1))*100,100),rem=g.target-g.saved,done=g.saved>=g.target;
-      let monthsH="";if(!done&&freeNow>0&&rem>0){const m=Math.ceil(rem/freeNow);monthsH=`<p style="font-size:11px;color:${t.blue};margin-top:6px">💡 ~${m} ${m===1?"mês":"meses"} guardando a sobra</p>`;}
+      const mc=g.monthlyContrib||0;
+      // Prazo: usa contribuição auto se existir, senão sobra livre
+      let monthsH="";
+      if(!done&&rem>0){
+        const monthly=mc||freeNow;
+        if(monthly>0){const m=Math.ceil(rem/monthly);monthsH=`<p style="font-size:11px;color:${mc?t.accent:t.blue};margin-top:6px">${mc?"🔄":"💡"} ~${m} ${m===1?"mês":"meses"}${mc?" com contribuição automática":" guardando a sobra"}</p>`;}
+      }
       let dlH="";if(g.deadline){const diff=Math.max(0,Math.round((new Date(g.deadline+"-01")-new Date())/(1000*60*60*24*30)));dlH=`<span style="font-size:10px;color:${diff<2?t.danger:t.muted};display:block;margin-top:2px">📅 ${fmtMonth(g.deadline)}${diff===0?" — este mês":diff>0?` — ${diff} meses`:""}</span>`;}
-      html+=`<div class="crd" style="${done?`border-color:${t.accent}55`:""}"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px"><div><p style="font-size:38px;margin-bottom:6px">${g.emoji||"🎯"}</p><p style="font-size:16px;font-weight:800">${g.name}</p>${dlH}</div>${done?`<span class="badge" style="background:${t.accent}18;color:${t.accent}">✅ CONCLUÍDA</span>`:""}</div><div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px"><span style="color:${t.accent};font-weight:700">${fmt(g.saved)}</span><span style="color:${t.muted}">Meta: ${fmt(g.target)}</span></div><div class="prog-bg" style="height:8px;margin-bottom:8px"><div class="prog-fill" style="width:${pct}%;background:${done?t.accent:`linear-gradient(90deg,${t.blue},${t.accent})`}"></div></div><p style="font-size:13px;font-weight:700">${pct.toFixed(0)}% concluído</p>${monthsH}<div style="display:flex;gap:8px;margin-top:14px"><button onclick="depositGoal('${g.id}')" style="flex:1;background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:9px;color:${t.accent};font-weight:700;font-size:12px">+ Depositar</button><button onclick="openEditGoal('${g.id}')" style="background:${t.blue}15;border:1px solid ${t.blue}33;border-radius:10px;padding:9px 12px;color:${t.blue};font-size:12px;font-weight:700">✏️</button><button onclick="delGoal('${g.id}')" style="background:${t.danger}15;border:none;border-radius:10px;padding:9px 12px;color:${t.danger};font-size:12px">✕</button></div></div>`;
+      const autoBadge=mc&&!done?`<span style="font-size:10px;background:${t.accent}18;color:${t.accent};padding:2px 8px;border-radius:6px;font-weight:700;margin-left:6px">🔄 ${fmt(mc)}/mês</span>`:"";
+      const lastKey=`goal-contrib-${g.id}-${curM()}`;
+      const alreadyDone=localStorage.getItem(lastKey);
+      const autoInfo=mc&&!done?`<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:${t.accent}10;border:1px solid ${t.accent}22;display:flex;justify-content:space-between;align-items:center">
+        <div><p style="font-size:11px;color:${t.accent};font-weight:700">Contribuição automática</p><p style="font-size:10px;color:${t.muted}">Todo mês: ${fmt(mc)} ${alreadyDone?`· <span style="color:${t.accent}">✓ Depositado este mês</span>`:""}</p></div>
+        ${!alreadyDone?`<button onclick="runAutoContrib('${g.id}')" style="background:${t.accent};border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;color:#000;cursor:pointer">Depositar agora</button>`:""}
+      </div>`:"";
+      html+=`<div class="crd" style="${done?`border-color:${t.accent}55`:""}${mc&&!done?`;border-color:${t.accent}33`:""}" ><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px"><div><p style="font-size:38px;margin-bottom:6px">${g.emoji||"🎯"}</p><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><p style="font-size:16px;font-weight:800">${g.name}</p>${autoBadge}</div>${dlH}</div>${done?`<span class="badge" style="background:${t.accent}18;color:${t.accent}">✅ CONCLUÍDA</span>`:""}</div><div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px"><span style="color:${t.accent};font-weight:700">${fmt(g.saved)}</span><span style="color:${t.muted}">Meta: ${fmt(g.target)}</span></div><div class="prog-bg" style="height:8px;margin-bottom:8px"><div class="prog-fill" style="width:${pct}%;background:${done?t.accent:`linear-gradient(90deg,${t.blue},${t.accent})`}"></div></div><p style="font-size:13px;font-weight:700">${pct.toFixed(0)}% concluído</p>${monthsH}${autoInfo}<div style="display:flex;gap:8px;margin-top:14px"><button onclick="depositGoal('${g.id}')" style="flex:1;background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:9px;color:${t.accent};font-weight:700;font-size:12px">+ Depositar</button><button onclick="openEditGoal('${g.id}')" style="background:${t.blue}15;border:1px solid ${t.blue}33;border-radius:10px;padding:9px 12px;color:${t.blue};font-size:12px;font-weight:700">✏️</button><button onclick="delGoal('${g.id}')" style="background:${t.danger}15;border:none;border-radius:10px;padding:9px 12px;color:${t.danger};font-size:12px">✕</button></div></div>`;
     });
     html+=`</div>`;
   }
@@ -1019,17 +1035,32 @@ function saveExpense(){
 
 // ── GOALS FORMS ───────────────────────────────────────────────────────
 let editGoalId=null;
-function openAddGoal(){editGoalId=null;S.selectedGoalEmoji="🎯";["goal-name","goal-target","goal-saved","goal-deadline"].forEach(id=>document.getElementById(id).value="");document.getElementById("goal-modal-title").textContent="🎯 Nova Meta";document.getElementById("goal-save-btn").textContent="Adicionar Meta";renderGoalChips();updateGoalPreview();openModal("modal-goal");}
-function openEditGoal(id){const g=S.goals.find(x=>x.id===id);if(!g)return;editGoalId=id;S.selectedGoalEmoji=g.emoji||"🎯";document.getElementById("goal-name").value=g.name;document.getElementById("goal-target").value=g.target;document.getElementById("goal-saved").value=g.saved;document.getElementById("goal-deadline").value=g.deadline||"";document.getElementById("goal-modal-title").textContent="✏️ Editar Meta";document.getElementById("goal-save-btn").textContent="Salvar";renderGoalChips();updateGoalPreview();openModal("modal-goal");}
+function openAddGoal(){editGoalId=null;S.selectedGoalEmoji="🎯";["goal-name","goal-target","goal-saved","goal-deadline","goal-monthly"].forEach(id=>document.getElementById(id).value="");document.getElementById("goal-modal-title").textContent="🎯 Nova Meta";document.getElementById("goal-save-btn").textContent="Adicionar Meta";renderGoalChips();updateGoalPreview();openModal("modal-goal");}
+function openEditGoal(id){const g=S.goals.find(x=>x.id===id);if(!g)return;editGoalId=id;S.selectedGoalEmoji=g.emoji||"🎯";document.getElementById("goal-name").value=g.name;document.getElementById("goal-target").value=g.target;document.getElementById("goal-saved").value=g.saved;document.getElementById("goal-deadline").value=g.deadline||"";document.getElementById("goal-monthly").value=g.monthlyContrib||"";document.getElementById("goal-modal-title").textContent="✏️ Editar Meta";document.getElementById("goal-save-btn").textContent="Salvar";renderGoalChips();updateGoalPreview();openModal("modal-goal");}
 function renderGoalChips(){document.getElementById("goal-emoji-chips").innerHTML=GOAL_EMOJIS.map(e=>`<button class="chip ${e===S.selectedGoalEmoji?"active":""}" onclick="S.selectedGoalEmoji='${e}';renderGoalChips()" style="font-size:18px;padding:6px 10px">${e}</button>`).join("");}
-function updateGoalPreview(){const t=T(),target=parseFloat(document.getElementById("goal-target")?.value)||0,saved=parseFloat(document.getElementById("goal-saved")?.value)||0,p=document.getElementById("goal-preview");if(!p)return;if(target>0){p.style.display="block";p.style.background=t.accent+"18";p.style.border=`1px solid ${t.accent}44`;p.innerHTML=`<p style="font-size:13px;color:${t.muted};margin-bottom:4px">Progresso</p><p style="font-size:22px;font-weight:800;color:${t.accent}">${Math.min((saved/target)*100,100).toFixed(0)}%</p><p style="font-size:11px;color:${t.muted};margin-top:4px">Faltam ${fmt(Math.max(0,target-saved))}</p>`;}else p.style.display="none";}
+function updateGoalPreview(){
+  const t=T();
+  const target=parseFloat(document.getElementById("goal-target")?.value)||0;
+  const saved=parseFloat(document.getElementById("goal-saved")?.value)||0;
+  const mc=parseFloat(document.getElementById("goal-monthly")?.value)||0;
+  const p=document.getElementById("goal-preview");if(!p)return;
+  if(target>0){
+    const rem=Math.max(0,target-saved);
+    const pct=Math.min((saved/target)*100,100);
+    let hint="";
+    if(mc>0&&rem>0){const months=Math.ceil(rem/mc);hint=`<p style="font-size:11px;color:${t.accent};margin-top:6px">🔄 Meta atingida em ~${months} ${months===1?"mês":"meses"} com ${fmt(mc)}/mês</p>`;}
+    p.style.display="block";p.style.background=t.accent+"18";p.style.border=`1px solid ${t.accent}44`;
+    p.innerHTML=`<p style="font-size:13px;color:${t.muted};margin-bottom:4px">Progresso atual</p><p style="font-size:22px;font-weight:800;color:${t.accent}">${pct.toFixed(0)}%</p><p style="font-size:11px;color:${t.muted};margin-top:4px">Faltam ${fmt(rem)}</p>${hint}`;
+  }else p.style.display="none";
+}
 function saveGoal(){
   const nEl=document.getElementById("goal-name"),tEl=document.getElementById("goal-target");
   const name=nEl.value.trim(),target=parseFloat(tEl.value);
   if(!name){nEl.classList.add("error");setTimeout(()=>nEl.classList.remove("error"),600);toast("Informe o nome!","err");return;}
   if(!target||target<=0){tEl.classList.add("error");setTimeout(()=>tEl.classList.remove("error"),600);toast("Informe o valor alvo!","err");return;}
   const saved=parseFloat(document.getElementById("goal-saved").value)||0,deadline=document.getElementById("goal-deadline").value||"";
-  const data={name,target,saved,deadline,emoji:S.selectedGoalEmoji};
+  const monthlyContrib=parseFloat(document.getElementById("goal-monthly").value)||0;
+  const data={name,target,saved,deadline,emoji:S.selectedGoalEmoji,monthlyContrib};
   if(editGoalId){
     window.fbUpdate("goals",editGoalId,data).then(()=>{toast("✅ Meta atualizada!");closeModal("modal-goal");}).catch(e=>toast("Erro: "+e.message,"err"));
   } else {
@@ -1356,6 +1387,40 @@ function renderAutoBackupStatus(){
     }
   }
 }
+// ── CONTRIBUIÇÃO AUTOMÁTICA DE METAS ─────────────────────────────────
+function runAutoContrib(id){
+  const g=S.goals.find(x=>x.id===id);if(!g||!g.monthlyContrib||g.saved>=g.target)return;
+  const key=`goal-contrib-${id}-${curM()}`;
+  if(localStorage.getItem(key)){toast("Contribuição já realizada este mês!","info");return;}
+  const newSaved=Math.min(g.saved+g.monthlyContrib,g.target);
+  window.fbUpdate("goals",id,{saved:newSaved}).then(()=>{
+    localStorage.setItem(key,"1");
+    if(newSaved>=g.target)toast(`🎉 Meta "${g.name}" concluída!`);
+    else toast(`🔄 ${fmt(g.monthlyContrib)} depositado automaticamente em "${g.name}"!`);
+  }).catch(e=>toast("Erro: "+e.message,"err"));
+}
+
+// Roda ao entrar no app — deposita automaticamente nas metas com contrib ativa
+window._checkAutoContribOnLoad = ()=>{
+  setTimeout(async ()=>{
+    const cm=curM();
+    for(const g of S.goals){
+      if(!g.monthlyContrib||g.monthlyContrib<=0)continue;
+      if(g.saved>=g.target)continue;
+      const key=`goal-contrib-${g.id}-${cm}`;
+      if(localStorage.getItem(key))continue;
+      // Deposita silenciosamente
+      const newSaved=Math.min(g.saved+g.monthlyContrib,g.target);
+      try{
+        await window.fbUpdate("goals",g.id,{saved:newSaved});
+        localStorage.setItem(key,"1");
+        if(newSaved>=g.target)toast(`🎉 Meta "${g.name}" concluída!`);
+        else toast(`🔄 Contribuição automática: ${fmt(g.monthlyContrib)} → "${g.name}"`,"info");
+      }catch(e){console.warn("Auto contrib error:",e);}
+    }
+  }, 4000);
+};
+
 // Checa backup automático ao entrar no app
 window._checkAutoBackupOnLoad = ()=>{
   setTimeout(()=>{
