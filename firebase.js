@@ -367,6 +367,33 @@ window.fbDel = async (col, id) => {
   await deleteDoc(doc(db, "houses", HOUSE_ID, col, id));
 };
 
+// ── COMENTÁRIOS EM GASTOS ─────────────────────────────────────────────
+window.fbAddComment = async (expId, data) => {
+  const ref = await addDoc(
+    collection(db, "houses", HOUSE_ID, "expenses", expId, "comments"),
+    {
+      ...data,
+      _createdAt:     new Date().toISOString(),
+      _createdBy:     auth.currentUser?.uid || "",
+      _createdByName: window._currentUser?.name || "",
+      _createdByEmoji:window._currentUser?.emoji || "👤",
+    }
+  );
+  return ref.id;
+};
+
+window.fbDelComment = async (expId, commentId) => {
+  await deleteDoc(doc(db, "houses", HOUSE_ID, "expenses", expId, "comments", commentId));
+};
+
+// Retorna função de unsubscribe; chama callback com array de comentários
+window.fbListenComments = (expId, callback) => {
+  return onSnapshot(
+    collection(db, "houses", HOUSE_ID, "expenses", expId, "comments"),
+    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+};
+
 // ── TELA HELPERS ──────────────────────────────────────────────────────
 function showLoginScreen() {
   document.getElementById("login-screen").style.display = "flex";

@@ -673,7 +673,7 @@ function renderHome(){
   const recentH=filtExp.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(e=>{
     const card=S.cards.find(c=>c.id==e.cardId);
     const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";
-    return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}${e.recurring?` <span style="font-size:9px;background:${t.blue}18;color:${t.blue};padding:1px 6px;border-radius:5px;font-weight:700">🔁</span>`:""}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5">📝 ${e.note}</p>`:""}</div>`;
+    return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}${e.recurring?` <span style="font-size:9px;background:${t.blue}18;color:${t.blue};padding:1px 6px;border-radius:5px;font-weight:700">🔁</span>`:""}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p><button data-comment-id="${e.id}" onclick="openComments('${e.id}')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:5px 9px;color:${t.muted};font-size:11px;flex-shrink:0;margin-left:6px">💬</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5">📝 ${e.note}</p>`:""}</div>`;
   }).join("");
 
   document.getElementById("tab-home").innerHTML=`${filterBar()}${daysH}${instH}<div class="grid-2" style="align-items:start"><div><p class="sec">Registrar Gasto</p><div class="crd"><div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px"><input class="inp" type="date" id="h-date" value="${today()}"/><select class="inp" id="h-cat">${Object.keys(CATS).map(c=>`<option>${c}</option>`).join("")}</select></div><input class="inp" id="h-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/><div class="grid-2 keep-2" style="gap:10px;margin-bottom:14px"><input class="inp" type="number" id="h-amount" placeholder="Valor (R$)" step="0.01"/><select class="inp" id="h-card"><option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select></div><textarea class="inp" id="h-note" placeholder="Observação (opcional)" style="margin-bottom:10px;resize:vertical;min-height:52px;font-size:13px;line-height:1.5"></textarea><button class="btn-p" onclick="saveHomeExp()">+ Registrar Gasto</button></div></div><div><p class="sec">Recentes</p><div class="crd" style="padding:0 20px">${!filtExp.length?`<p style="padding:20px 0;color:${t.muted};font-size:13px">Nenhum gasto ainda.</p>`:recentH}</div></div></div>`;
@@ -720,6 +720,171 @@ function renderCards(){
 }
 
 // ── ALL EXPENSES ──────────────────────────────────────────────────────
+
+// ── COMENTÁRIOS EM GASTOS ─────────────────────────────────────────────
+const COMMENT_REACTIONS = ["👍","❤️","😂","😮","😢","🤔"];
+let _commentExpId   = null;
+let _commentUnsub   = null;
+let _comments       = [];
+
+function openComments(expId){
+  const e = S.expenses.find(x => x.id === expId);
+  if(!e) return;
+  _commentExpId = expId;
+  const t = T();
+
+  // Cabeçalho do modal
+  document.getElementById("comment-exp-title").textContent  = e.desc;
+  document.getElementById("comment-exp-amount").textContent = fmt(e.amount);
+  document.getElementById("comment-exp-date").textContent   = fmtD(e.date);
+  document.getElementById("comment-input").value = "";
+
+  // Estiliza o modal com o tema atual
+  const mb = document.querySelector("#modal-comments .modal-box");
+  if(mb){ mb.style.background = t.card; mb.style.borderColor = t.border; }
+
+  // Cancela listener anterior se existir
+  if(_commentUnsub){ _commentUnsub(); _commentUnsub = null; }
+
+  // Abre o modal e inicia o listener em tempo real
+  openModal("modal-comments");
+  renderCommentsList([]);
+
+  _commentUnsub = window.fbListenComments(expId, (comments) => {
+    _comments = comments.sort((a,b) => (a._createdAt||"").localeCompare(b._createdAt||""));
+    renderCommentsList(_comments);
+    // Atualiza badge no botão de comentários se visível
+    updateCommentBadge(expId, _comments.length);
+  });
+}
+
+function closeCommentModal(){
+  if(_commentUnsub){ _commentUnsub(); _commentUnsub = null; }
+  _commentExpId = null;
+  closeModal("modal-comments");
+}
+
+function renderCommentsList(comments){
+  const t  = T();
+  const el = document.getElementById("comments-list");
+  if(!el) return;
+  const myUid = window._currentUser?.uid;
+
+  if(!comments.length){
+    el.innerHTML = `<div style="text-align:center;padding:24px 0;color:${t.muted};font-size:13px">
+      <p style="font-size:28px;margin-bottom:8px">💬</p>
+      <p>Nenhum comentário ainda.<br>Seja o primeiro!</p>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = comments.map(c => {
+    const isMe = c._createdBy === myUid;
+    const canDel = isMe;
+    const timeStr = c._createdAt
+      ? new Date(c._createdAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+" · "+new Date(c._createdAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})
+      : "";
+
+    // Reações agrupadas
+    const reactionMap = {};
+    (c.reactions||[]).forEach(r => {
+      reactionMap[r.emoji] = (reactionMap[r.emoji]||[]);
+      reactionMap[r.emoji].push(r.uid);
+    });
+    const reactionsHtml = Object.entries(reactionMap).map(([emoji, uids]) => {
+      const iReacted = uids.includes(myUid);
+      return `<button onclick="toggleReaction('${c.id}','${emoji}')"
+        style="background:${iReacted?t.accent+"22":t.cardLight};border:1px solid ${iReacted?t.accent+"55":t.border};
+               border-radius:99px;padding:2px 8px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;color:${t.text}">
+        ${emoji} <span style="font-size:10px;color:${t.muted}">${uids.length}</span>
+      </button>`;
+    }).join("");
+
+    return `
+      <div style="display:flex;flex-direction:${isMe?"row-reverse":"row"};gap:8px;align-items:flex-start;margin-bottom:14px">
+        <div style="width:32px;height:32px;border-radius:50%;background:${isMe?t.accent:t.blue}22;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">
+          ${c._createdByEmoji||"👤"}
+        </div>
+        <div style="max-width:78%;${isMe?"align-items:flex-end;":""}">
+          <p style="font-size:10px;color:${t.muted};margin-bottom:3px;text-align:${isMe?"right":"left"}">
+            ${c._createdByName||"?"} · ${timeStr}
+          </p>
+          <div style="background:${isMe?t.accent+"22":t.cardLight};border:1px solid ${isMe?t.accent+"44":t.border};
+                      border-radius:${isMe?"14px 4px 14px 14px":"4px 14px 14px 14px"};padding:10px 13px;position:relative">
+            <p style="font-size:13px;color:${t.text};line-height:1.5;white-space:pre-wrap">${escapeHtmlComment(c.text||"")}</p>
+            ${c.gif?`<img src="${c.gif}" style="max-width:100%;border-radius:8px;margin-top:6px">`:""}
+          </div>
+          ${reactionsHtml?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;justify-content:${isMe?"flex-end":"flex-start"}">${reactionsHtml}</div>`:""}
+          <div style="display:flex;gap:6px;margin-top:5px;justify-content:${isMe?"flex-end":"flex-start"}">
+            <!-- Picker de reação -->
+            ${COMMENT_REACTIONS.map(em =>
+              `<button onclick="toggleReaction('${c.id}','${em}')"
+                style="background:none;border:none;font-size:14px;cursor:pointer;opacity:.5;padding:0;transition:opacity .15s"
+                onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">${em}</button>`
+            ).join("")}
+            ${canDel?`<button onclick="deleteComment('${c.id}')"
+              style="background:none;border:none;font-size:11px;color:${t.danger};cursor:pointer;opacity:.5;padding:0 2px"
+              onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">remover</button>`:""}
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+
+  // Scroll para o final
+  setTimeout(()=>{ el.scrollTop = el.scrollHeight; }, 50);
+}
+
+function escapeHtmlComment(str){
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function sendComment(){
+  const inp  = document.getElementById("comment-input");
+  const text = inp.value.trim();
+  if(!text || !_commentExpId) return;
+  inp.value = "";
+  window.fbAddComment(_commentExpId, { text })
+    .catch(e => toast("Erro ao comentar: "+e.message, "err"));
+}
+
+function deleteComment(commentId){
+  if(!_commentExpId) return;
+  window.fbDelComment(_commentExpId, commentId)
+    .catch(e => toast("Erro: "+e.message,"err"));
+}
+
+function toggleReaction(commentId, emoji){
+  if(!_commentExpId) return;
+  const myUid = window._currentUser?.uid;
+  const comment = _comments.find(c => c.id === commentId);
+  if(!comment) return;
+  const reactions = comment.reactions || [];
+  const exists = reactions.find(r => r.uid === myUid && r.emoji === emoji);
+  const newReactions = exists
+    ? reactions.filter(r => !(r.uid === myUid && r.emoji === emoji))
+    : [...reactions, { uid: myUid, emoji }];
+  window.fbUpdate("expenses/"+_commentExpId+"/comments", commentId, { reactions: newReactions })
+    .catch(e => console.warn("reaction error:", e));
+}
+
+function updateCommentBadge(expId, count){
+  // Atualiza badge nos botões de comentário visíveis
+  document.querySelectorAll(`[data-comment-id="${expId}"]`).forEach(btn => {
+    btn.textContent = count > 0 ? `💬 ${count}` : "💬";
+  });
+}
+
+// Conta comentários de um gasto sem abrir listener (usa cache local)
+function getCommentCount(expId){
+  return 0; // será atualizado dinamicamente pelo listener
+}
+
+function sendQuickReaction(emoji){
+  if(!_commentExpId) return;
+  window.fbAddComment(_commentExpId, { text: emoji })
+    .catch(e => toast("Erro: "+e.message,"err"));
+}
+
 // ── BUSCA DE GASTOS ───────────────────────────────────────────────────
 let _expSearch = "";
 function setExpSearch(v){ _expSearch=v.trim().toLowerCase(); scheduleRender("expenses"); }
@@ -794,7 +959,7 @@ function renderAllExp(){
     Object.keys(CATS).forEach(cat=>{
       const items=filtExp.filter(e=>e.cat===cat);if(!items.length)return;
       const catTotal=items.reduce((s,e)=>s+e.amount,0);
-      html+=`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:14px;font-weight:700">${CATS[cat]} ${cat}</span><span style="font-size:13px;font-weight:700;color:${t.warn}">${fmt(catTotal)}</span></div><div class="crd" style="padding:0 18px">${items.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{const card=S.cards.find(c=>c.id==e.cardId);const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;margin-top:2px;align-items:center"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};margin-right:8px;white-space:nowrap">${fmt(e.amount)}</p><button onclick="openEditExp('${e.id}')" style="background:${t.blue}15;border:none;border-radius:8px;padding:6px 10px;color:${t.blue};font-size:12px;flex-shrink:0;margin-right:4px">✏️</button><button onclick="delExp('${e.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 10px;color:${t.danger};font-size:12px;flex-shrink:0">✕</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:6px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5;white-space:pre-wrap">📝 ${e.note}</p>`:""}</div>`;}).join("")}</div></div>`;
+      html+=`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:14px;font-weight:700">${CATS[cat]} ${cat}</span><span style="font-size:13px;font-weight:700;color:${t.warn}">${fmt(catTotal)}</span></div><div class="crd" style="padding:0 18px">${items.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{const card=S.cards.find(c=>c.id==e.cardId);const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;margin-top:2px;align-items:center"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};margin-right:8px;white-space:nowrap">${fmt(e.amount)}</p><button data-comment-id="${e.id}" onclick="openComments('${e.id}')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:6px 10px;color:${t.muted};font-size:11px;flex-shrink:0;margin-right:4px">💬</button><button onclick="openEditExp('${e.id}')" style="background:${t.blue}15;border:none;border-radius:8px;padding:6px 10px;color:${t.blue};font-size:12px;flex-shrink:0;margin-right:4px">✏️</button><button onclick="delExp('${e.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 10px;color:${t.danger};font-size:12px;flex-shrink:0">✕</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:6px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5;white-space:pre-wrap">📝 ${e.note}</p>`:""}</div>`;}).join("")}</div></div>`;
     });
     html+=`</div>`;
   }
