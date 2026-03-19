@@ -1787,6 +1787,182 @@ function initOfflineBanner(){
 // Inicia o banner assim que o DOM carrega
 document.addEventListener("DOMContentLoaded",initOfflineBanner);
 
+
+// ── BLOQUEIO POR PIN ──────────────────────────────────────────────────
+const PIN_TIMEOUT = 5 * 60 * 1000; // 5 minutos
+const PIN_MAX_ATTEMPTS = 3;
+
+let _pinBuffer     = "";
+let _pinAttempts   = 0;
+let _bgTime        = null;
+let _pinSetupStep  = 1;   // 1 = digitar, 2 = confirmar
+let _pinSetupFirst = "";
+let _pinSetupBuffer= "";
+
+// ── Utilitários ────────────────────────────────────────────────────────
+function _pinKey(uid){ return "pin_" + (uid || window._currentUser?.uid || "user"); }
+
+function _hashPin(pin){
+  // Hash simples (djb2) — sem crypto nativa no SW, mas suficiente para PIN local
+  let h = 5381;
+  for(let i=0;i<pin.length;i++) h = ((h<<5)+h)+pin.charCodeAt(i);
+  return (h >>> 0).toString(16);
+}
+
+function getPinHash(){ return localStorage.getItem(_pinKey()); }
+function setPinHash(pin){ localStorage.setItem(_pinKey(), _hashPin(pin)); }
+function removePinHash(){ localStorage.removeItem(_pinKey()); }
+function hasPinSet(){ return !!getPinHash(); }
+
+// ── Overlay de desbloqueio ─────────────────────────────────────────────
+function showPinOverlay(){
+  const u = window._currentUser;
+  const t = T();
+  const ov = document.getElementById("pin-overlay");
+  if(!ov) return;
+  ov.style.background = t.bg;
+  document.getElementById("pin-avatar").textContent = u?.emoji || "🔒";
+  document.getElementById("pin-title").style.color = t.text;
+  document.getElementById("pin-subtitle").style.color = t.muted;
+  document.getElementById("pin-subtitle").textContent = "Digite seu PIN para continuar";
+  _pinBuffer   = "";
+  _pinAttempts = 0;
+  _updatePinDots("pin-dot", _pinBuffer);
+  _clearPinError();
+  ov.classList.add("show");
+}
+
+function hidePinOverlay(){
+  const ov = document.getElementById("pin-overlay");
+  if(ov) ov.classList.remove("show");
+  _pinBuffer = "";
+  _bgTime    = null;
+}
+
+function pinKey(v){
+  if(v === "logout"){ doLogout(); hidePinOverlay(); return; }
+  if(v === "del"){ _pinBuffer = _pinBuffer.slice(0,-1); _updatePinDots("pin-dot", _pinBuffer); return; }
+  if(_pinBuffer.length >= 4) return;
+  _pinBuffer += String(v);
+  _updatePinDots("pin-dot", _pinBuffer);
+  if(_pinBuffer.length === 4) _verifyPin();
+}
+
+function _verifyPin(){
+  if(_hashPin(_pinBuffer) === getPinHash()){
+    hidePinOverlay();
+    toast("✅ PIN correto!");
+  } else {
+    _pinAttempts++;
+    const rem = PIN_MAX_ATTEMPTS - _pinAttempts;
+    _shakeOverlay();
+    _pinBuffer = "";
+    _updatePinDots("pin-dot", "");
+    if(_pinAttempts >= PIN_MAX_ATTEMPTS){
+      toast("🔒 3 tentativas erradas — saindo!", "err");
+      setTimeout(()=>{ doLogout(); hidePinOverlay(); }, 1200);
+    } else {
+      const el = document.getElementById("pin-error");
+      el.textContent = `PIN incorreto. ${rem} tentativa${rem>1?"s":""} restante${rem>1?"s":""}.`;
+      el.style.display = "block";
+      document.getElementById("pin-attempts").textContent = "";
+    }
+  }
+}
+
+function _shakeOverlay(){
+  const kb = document.getElementById("pin-keyboard");
+  if(!kb) return;
+  kb.style.animation = "shake .3s ease-out";
+  setTimeout(()=> kb.style.animation = "", 400);
+}
+
+function _clearPinError(){
+  const el = document.getElementById("pin-error");
+  if(el){ el.style.display = "none"; el.textContent = ""; }
+  const at = document.getElementById("pin-attempts");
+  if(at) at.textContent = "";
+}
+
+function _updatePinDots(cls, buf){
+  document.querySelectorAll("."+cls).forEach((d,i)=>{
+    const t = T();
+    d.style.background   = i < buf.length ? t.accent : "transparent";
+    d.style.borderColor  = i < buf.length ? t.accent : t.border;
+  });
+}
+
+// ── Setup / alteração de PIN ───────────────────────────────────────────
+function openPinSetup(){
+  _pinSetupStep   = 1;
+  _pinSetupFirst  = "";
+  _pinSetupBuffer = "";
+  document.getElementById("pin-setup-step-label").textContent = "Digite um PIN de 4 dígitos";
+  document.getElementById("pin-setup-error").style.display = "none";
+  _updatePinDots("pin-setup-dot", "");
+  openModal("modal-pin-setup");
+}
+
+function pinSetupKey(v){
+  if(v === "del"){ _pinSetupBuffer = _pinSetupBuffer.slice(0,-1); _updatePinDots("pin-setup-dot",_pinSetupBuffer); return; }
+  if(_pinSetupBuffer.length >= 4) return;
+  _pinSetupBuffer += String(v);
+  _updatePinDots("pin-setup-dot", _pinSetupBuffer);
+  if(_pinSetupBuffer.length === 4){
+    if(_pinSetupStep === 1){
+      _pinSetupFirst  = _pinSetupBuffer;
+      _pinSetupBuffer = "";
+      _pinSetupStep   = 2;
+      document.getElementById("pin-setup-step-label").textContent = "Confirme seu PIN";
+      _updatePinDots("pin-setup-dot","");
+    } else {
+      if(_pinSetupBuffer === _pinSetupFirst){
+        setPinHash(_pinSetupFirst);
+        closeModal("modal-pin-setup");
+        toast("🔒 PIN configurado com sucesso!");
+      } else {
+        _pinSetupBuffer = "";
+        _pinSetupFirst  = "";
+        _pinSetupStep   = 1;
+        document.getElementById("pin-setup-step-label").textContent = "PINs diferentes — tente novamente";
+        document.getElementById("pin-setup-error").textContent = "Os PINs não conferem.";
+        document.getElementById("pin-setup-error").style.display = "block";
+        _updatePinDots("pin-setup-dot","");
+      }
+    }
+  }
+}
+
+function disablePinLock(){
+  confirm2({
+    emoji:"🔓",
+    title:"Desativar bloqueio?",
+    msg:"O app não pedirá mais PIN ao retornar do background.",
+    okLabel:"Desativar",
+    okColor:T().warn,
+    ok:()=>{ removePinHash(); closeModal("modal-pin-setup"); toast("Bloqueio por PIN desativado","info"); }
+  });
+}
+
+// ── Detecção de background ─────────────────────────────────────────────
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState === "hidden"){
+    _bgTime = Date.now();
+  } else {
+    if(!_bgTime) return;
+    const elapsed = Date.now() - _bgTime;
+    _bgTime = null;
+    // Só bloqueia se app está na tela principal E PIN foi configurado
+    const layout = document.getElementById("layout");
+    if(!layout || layout.style.display === "none") return;
+    if(!hasPinSet()) return;
+    if(elapsed >= PIN_TIMEOUT) showPinOverlay();
+  }
+});
+
+// Expõe para a sidebar (botão de configurar PIN)
+window.openPinSetup = openPinSetup;
+
 // Checa backup automático ao entrar no app
 window._checkAutoBackupOnLoad = ()=>{
   setTimeout(()=>{

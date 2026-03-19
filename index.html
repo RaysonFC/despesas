@@ -195,6 +195,7 @@
     <!-- Utilitários (sempre visíveis, inclusive no mobile) -->
     <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
     <button onclick="openBackup()" class="side-btn"><span class="icon">💾</span>Backup</button>
+    <button onclick="openPinSetup()" class="side-btn"><span class="icon">🔒</span>Bloqueio PIN</button>
 
     <!-- Rodapé da sidebar: sync + salário + usuário + sair -->
     <div id="sidebar-bottom">
@@ -548,6 +549,88 @@
     </div>
   </div>
 </div>
+
+
+<!-- ══ PIN LOCK OVERLAY ══════════════════════════════════════════════ -->
+<div id="pin-overlay" style="display:none;position:fixed;inset:0;z-index:9990;background:#080810;flex-direction:column;align-items:center;justify-content:center;padding:32px;">
+  <div style="text-align:center;max-width:320px;width:100%">
+    <div id="pin-avatar" style="font-size:44px;margin-bottom:10px"></div>
+    <h2 id="pin-title" style="font-size:20px;font-weight:800;color:#e8e8f4;margin-bottom:6px">App bloqueado</h2>
+    <p id="pin-subtitle" style="font-size:13px;color:#5a5a72;margin-bottom:28px">Digite seu PIN para continuar</p>
+
+    <!-- Dots indicadores -->
+    <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:28px">
+      <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+      <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+      <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+      <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+    </div>
+
+    <!-- Teclado numérico -->
+    <div id="pin-keyboard" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:240px;margin:0 auto 20px">
+      <button onclick="pinKey(1)" class="pin-key">1</button>
+      <button onclick="pinKey(2)" class="pin-key">2</button>
+      <button onclick="pinKey(3)" class="pin-key">3</button>
+      <button onclick="pinKey(4)" class="pin-key">4</button>
+      <button onclick="pinKey(5)" class="pin-key">5</button>
+      <button onclick="pinKey(6)" class="pin-key">6</button>
+      <button onclick="pinKey(7)" class="pin-key">7</button>
+      <button onclick="pinKey(8)" class="pin-key">8</button>
+      <button onclick="pinKey(9)" class="pin-key">9</button>
+      <button onclick="pinKey('logout')" class="pin-key" id="pin-logout-btn" style="font-size:11px;color:#ff4d6d">Sair</button>
+      <button onclick="pinKey(0)" class="pin-key">0</button>
+      <button onclick="pinKey('del')" class="pin-key" style="font-size:18px">⌫</button>
+    </div>
+
+    <p id="pin-error" style="display:none;color:#ff4d6d;font-size:13px;background:#ff4d6d18;padding:10px;border-radius:12px;margin-bottom:16px"></p>
+    <p id="pin-attempts" style="font-size:11px;color:#5a5a72"></p>
+  </div>
+</div>
+
+<!-- Modal para criar/alterar PIN -->
+<div id="modal-pin-setup" class="modal-bg" style="display:none" onclick="closeModal('modal-pin-setup')">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:360px;text-align:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <p style="font-weight:700;font-size:18px">🔒 Configurar PIN</p>
+      <button onclick="closeModal('modal-pin-setup')" class="btn-sm">✕</button>
+    </div>
+    <p id="pin-setup-step-label" style="font-size:13px;color:#5a5a72;margin-bottom:20px">Digite um PIN de 4 dígitos</p>
+    <div id="pin-setup-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:24px">
+      <div class="pin-setup-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+      <div class="pin-setup-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+      <div class="pin-setup-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+      <div class="pin-setup-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #22223a;transition:background .15s"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:220px;margin:0 auto 16px">
+      <button onclick="pinSetupKey(1)" class="pin-key">1</button>
+      <button onclick="pinSetupKey(2)" class="pin-key">2</button>
+      <button onclick="pinSetupKey(3)" class="pin-key">3</button>
+      <button onclick="pinSetupKey(4)" class="pin-key">4</button>
+      <button onclick="pinSetupKey(5)" class="pin-key">5</button>
+      <button onclick="pinSetupKey(6)" class="pin-key">6</button>
+      <button onclick="pinSetupKey(7)" class="pin-key">7</button>
+      <button onclick="pinSetupKey(8)" class="pin-key">8</button>
+      <button onclick="pinSetupKey(9)" class="pin-key">9</button>
+      <div></div>
+      <button onclick="pinSetupKey(0)" class="pin-key">0</button>
+      <button onclick="pinSetupKey('del')" class="pin-key" style="font-size:18px">⌫</button>
+    </div>
+    <p id="pin-setup-error" style="display:none;color:#ff4d6d;font-size:12px;margin-bottom:8px"></p>
+    <button onclick="disablePinLock()" style="background:none;border:none;color:#5a5a72;font-size:12px;cursor:pointer;text-decoration:underline">Desativar bloqueio por PIN</button>
+  </div>
+</div>
+
+<style>
+  #pin-overlay{display:none;}
+  #pin-overlay.show{display:flex;}
+  .pin-key{
+    padding:16px 8px;border-radius:14px;border:1px solid #22223a;
+    background:#10101c;font-size:20px;font-weight:700;color:#e8e8f4;
+    cursor:pointer;transition:background .12s;
+  }
+  .pin-key:hover{background:#1c1c2e;}
+  .pin-key:active{background:#22223a;transform:scale(.95);}
+</style>
 
 </body>
 </html>
