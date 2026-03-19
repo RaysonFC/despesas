@@ -7,6 +7,17 @@ button{cursor:pointer;}
 ::-webkit-scrollbar-thumb{border-radius:99px;}
 @keyframes dustAway{0%{opacity:1;transform:scale(1) translateY(0);filter:blur(0)}40%{opacity:.6;transform:scale(1.04) translateY(-6px);filter:blur(1px)}100%{opacity:0;transform:scale(.7) translateY(-24px) translateX(20px);filter:blur(8px)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.tab-enter>*{opacity:0;animation:fadeSlideUp .32s ease-out forwards;}
+.tab-enter>*:nth-child(1){animation-delay:.03s}
+.tab-enter>*:nth-child(2){animation-delay:.08s}
+.tab-enter>*:nth-child(3){animation-delay:.13s}
+.tab-enter>*:nth-child(4){animation-delay:.18s}
+.tab-enter>*:nth-child(5){animation-delay:.23s}
+.tab-enter>*:nth-child(6){animation-delay:.28s}
+.tab-enter>*:nth-child(7){animation-delay:.33s}
+.tab-enter>*:nth-child(8){animation-delay:.38s}
+.tab-enter>*:nth-child(n+9){animation-delay:.42s}
 @keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-4px)}50%{transform:translateX(4px)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 #ff4d6d55}50%{box-shadow:0 0 0 8px #ff4d6d00}}

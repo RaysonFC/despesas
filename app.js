@@ -145,6 +145,9 @@ function renderAll(){
   applyTheme();
   renderSalarySidebar();renderSalaryTopbar();renderStatus();renderTab(S.currentTab);
   updateUserBadge();
+  // Anima status-card sempre que recarrega
+  const sc=document.getElementById("status-card");
+  if(sc){sc.classList.remove("tab-enter");void sc.offsetWidth;sc.classList.add("tab-enter");}
 }
 
 function renderSalarySidebar(){
@@ -229,6 +232,9 @@ function setTab(tab){
   });
   document.getElementById("topbar-title").textContent=TAB_LABELS[tab]||tab;
   S.currentTab=tab;renderTab(tab);
+  // Animação de entrada: remove e reaplica para reiniciar
+  const el=document.getElementById("tab-"+tab);
+  if(el){el.classList.remove("tab-enter");void el.offsetWidth;el.classList.add("tab-enter");}
 }
 function renderTab(t){
   if(t==="home")renderHome();else if(t==="cards")renderCards();
