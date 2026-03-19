@@ -140,10 +140,12 @@ button{cursor:pointer;}
   /* Topbar mobile: oculta botão Tema (fica no menu) */
   #theme-btn-top{display:none!important;}
 
-  #ham-btn{display:flex;align-self:flex-start;margin-top:2px;}
+  #ham-btn{display:flex;align-self:center;}
   #bottom-nav{display:flex;}
-  #topbar{padding:10px 14px 0;}
-  #topbar h1{font-size:20px;}
+  #topbar{padding:8px 14px 8px;margin-bottom:14px;}
+  #topbar h1{font-size:19px;}
+  #topbar .sub{display:none;}
+  #topbar-left{align-items:center;}
   #content{padding:0 14px 76px;}
   .grid-2,.grid-3{grid-template-columns:1fr;}
   .modal-bg{align-items:flex-end;padding:0;}

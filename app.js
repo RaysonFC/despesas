@@ -158,21 +158,35 @@ function renderSalarySidebar(){
 function renderSalaryTopbar(){
   const t=T(),total=S.salary+S.extra;
   const el=document.getElementById("salary-topbar");if(!el)return;
-  el.innerHTML=`
-    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end">
-      <div style="text-align:right">
-        <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Salário</p>
-        <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:15px;font-weight:800;padding:0;cursor:pointer">${fmt(S.salary)} ✎</button>
-      </div>
-      <div style="text-align:right">
-        <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Extra</p>
-        <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.blue};font-size:15px;font-weight:800;padding:0;cursor:pointer">${fmt(S.extra)} ✎</button>
-      </div>
-      <div style="text-align:right;padding-left:12px;border-left:1px solid ${t.border}44">
-        <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Total</p>
-        <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:17px;font-weight:800;padding:0;cursor:pointer">${fmt(total)}</button>
-      </div>
-    </div>`;
+  const mob=window.innerWidth<768;
+
+  if(mob){
+    // ── MOBILE: linha única super compacta ────────────────────────────
+    el.innerHTML=`
+      <button onclick="openSalaryModal()" style="display:flex;align-items:center;gap:6px;background:${t.cardLight};border:1px solid ${t.border};border-radius:99px;padding:5px 12px 5px 8px;cursor:pointer;">
+        <span style="font-size:11px">💰</span>
+        <span style="font-size:13px;font-weight:800;color:${t.accent}">${fmt(total)}</span>
+        <span style="width:1px;height:12px;background:${t.border};margin:0 2px"></span>
+        <span style="font-size:10px;color:${t.muted}">✎</span>
+      </button>`;
+  } else {
+    // ── DESKTOP: layout expandido original ───────────────────────────
+    el.innerHTML=`
+      <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end">
+        <div style="text-align:right">
+          <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Salário</p>
+          <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:15px;font-weight:800;padding:0;cursor:pointer">${fmt(S.salary)} ✎</button>
+        </div>
+        <div style="text-align:right">
+          <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Extra</p>
+          <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.blue};font-size:15px;font-weight:800;padding:0;cursor:pointer">${fmt(S.extra)} ✎</button>
+        </div>
+        <div style="text-align:right;padding-left:12px;border-left:1px solid ${t.border}44">
+          <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Total</p>
+          <button onclick="openSalaryModal()" style="background:none;border:none;color:${t.accent};font-size:17px;font-weight:800;padding:0;cursor:pointer">${fmt(total)}</button>
+        </div>
+      </div>`;
+  }
 }
 
 // ── STATUS ────────────────────────────────────────────────────────────
