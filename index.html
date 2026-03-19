@@ -318,10 +318,11 @@
       <select class="inp" id="exp-cat"><option>Alimentação</option><option>Transporte</option><option>Saúde</option><option>Lazer</option><option>Casa</option><option>Educação</option><option>Roupas</option><option>Outros</option></select>
     </div>
     <input class="inp" id="exp-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <input class="inp" type="number" id="exp-amount" placeholder="Valor (R$)"/>
       <select class="inp" id="exp-card"></select>
     </div>
+    <textarea class="inp" id="exp-note" placeholder="Observação (opcional) — ex: parcela do almoço com amigos" style="margin-bottom:16px;resize:vertical;min-height:60px;line-height:1.5"></textarea>
     <button class="btn-p" onclick="saveExpense()">+ Registrar Gasto</button>
   </div>
 </div>

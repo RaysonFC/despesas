@@ -621,10 +621,10 @@ function renderHome(){
   const recentH=filtExp.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(e=>{
     const card=S.cards.find(c=>c.id==e.cardId);
     const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";
-    return`<div class="row"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p></div>`;
+    return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5">📝 ${e.note}</p>`:""}</div>`;
   }).join("");
 
-  document.getElementById("tab-home").innerHTML=`${filterBar()}${daysH}${instH}<div class="grid-2" style="align-items:start"><div><p class="sec">Registrar Gasto</p><div class="crd"><div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px"><input class="inp" type="date" id="h-date" value="${today()}"/><select class="inp" id="h-cat">${Object.keys(CATS).map(c=>`<option>${c}</option>`).join("")}</select></div><input class="inp" id="h-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/><div class="grid-2 keep-2" style="gap:10px;margin-bottom:14px"><input class="inp" type="number" id="h-amount" placeholder="Valor (R$)" step="0.01"/><select class="inp" id="h-card"><option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select></div><button class="btn-p" onclick="saveHomeExp()">+ Registrar Gasto</button></div></div><div><p class="sec">Recentes</p><div class="crd" style="padding:0 20px">${!filtExp.length?`<p style="padding:20px 0;color:${t.muted};font-size:13px">Nenhum gasto ainda.</p>`:recentH}</div></div></div>`;
+  document.getElementById("tab-home").innerHTML=`${filterBar()}${daysH}${instH}<div class="grid-2" style="align-items:start"><div><p class="sec">Registrar Gasto</p><div class="crd"><div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px"><input class="inp" type="date" id="h-date" value="${today()}"/><select class="inp" id="h-cat">${Object.keys(CATS).map(c=>`<option>${c}</option>`).join("")}</select></div><input class="inp" id="h-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/><div class="grid-2 keep-2" style="gap:10px;margin-bottom:14px"><input class="inp" type="number" id="h-amount" placeholder="Valor (R$)" step="0.01"/><select class="inp" id="h-card"><option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select></div><textarea class="inp" id="h-note" placeholder="Observação (opcional)" style="margin-bottom:10px;resize:vertical;min-height:52px;font-size:13px;line-height:1.5"></textarea><button class="btn-p" onclick="saveHomeExp()">+ Registrar Gasto</button></div></div><div><p class="sec">Recentes</p><div class="crd" style="padding:0 20px">${!filtExp.length?`<p style="padding:20px 0;color:${t.muted};font-size:13px">Nenhum gasto ainda.</p>`:recentH}</div></div></div>`;
 }
 
 function saveHomeExp(){
@@ -635,8 +635,10 @@ function saveHomeExp(){
   if(!amount||amount<=0){aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);ok=false;}
   if(!ok){toast("Preencha descrição e valor!","err");return;}
   const cv=document.getElementById("h-card").value;
-  const data={date:document.getElementById("h-date").value,desc,amount,cat:document.getElementById("h-cat").value,cardId:cv||null};
+  const note=(document.getElementById("h-note")?.value||"").trim();
+  const data={date:document.getElementById("h-date").value,desc,amount,cat:document.getElementById("h-cat").value,cardId:cv||null,note:note||""};
   dEl.value="";aEl.value="";
+  const hn=document.getElementById("h-note");if(hn)hn.value="";
   window.fbAdd("expenses",data).then(()=>toast("✅ Gasto registrado!")).catch(e=>toast("Erro: "+e.message,"err"));
 }
 
@@ -678,7 +680,7 @@ function renderAllExp(){
     Object.keys(CATS).forEach(cat=>{
       const items=filtExp.filter(e=>e.cat===cat);if(!items.length)return;
       const catTotal=items.reduce((s,e)=>s+e.amount,0);
-      html+=`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:14px;font-weight:700">${CATS[cat]} ${cat}</span><span style="font-size:13px;font-weight:700;color:${t.warn}">${fmt(catTotal)}</span></div><div class="crd" style="padding:0 18px">${items.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{const card=S.cards.find(c=>c.id==e.cardId);const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";return`<div class="row"><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;margin-top:2px;align-items:center"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};margin-right:8px;white-space:nowrap">${fmt(e.amount)}</p><button onclick="delExp('${e.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 10px;color:${t.danger};font-size:12px;flex-shrink:0">✕</button></div>`;}).join("")}</div></div>`;
+      html+=`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:14px;font-weight:700">${CATS[cat]} ${cat}</span><span style="font-size:13px;font-weight:700;color:${t.warn}">${fmt(catTotal)}</span></div><div class="crd" style="padding:0 18px">${items.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{const card=S.cards.find(c=>c.id==e.cardId);const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;margin-top:2px;align-items:center"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};margin-right:8px;white-space:nowrap">${fmt(e.amount)}</p><button onclick="delExp('${e.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 10px;color:${t.danger};font-size:12px;flex-shrink:0">✕</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:6px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5;white-space:pre-wrap">📝 ${e.note}</p>`:""}</div>`;}).join("")}</div></div>`;
     });
     html+=`</div>`;
   }
@@ -1029,8 +1031,13 @@ function saveExpense(){
   if(!amount||amount<=0){aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);ok=false;}
   if(!ok){toast("Preencha descrição e valor!","err");return;}
   const cv=document.getElementById("exp-card").value;
-  const data={date:document.getElementById("exp-date").value,desc,amount,cat:document.getElementById("exp-cat").value,cardId:cv||null};
-  window.fbAdd("expenses",data).then(()=>{toast("✅ Gasto registrado!");closeModal("modal-expense");}).catch(e=>toast("Erro: "+e.message,"err"));
+  const note=document.getElementById("exp-note").value.trim();
+  const data={date:document.getElementById("exp-date").value,desc,amount,cat:document.getElementById("exp-cat").value,cardId:cv||null,note:note||""};
+  window.fbAdd("expenses",data).then(()=>{
+    toast("✅ Gasto registrado!");
+    closeModal("modal-expense");
+    document.getElementById("exp-note").value="";
+  }).catch(e=>toast("Erro: "+e.message,"err"));
 }
 
 // ── GOALS FORMS ───────────────────────────────────────────────────────
