@@ -323,6 +323,10 @@
       <select class="inp" id="exp-card"></select>
     </div>
     <textarea class="inp" id="exp-note" placeholder="Observação (opcional) — ex: parcela do almoço com amigos" style="margin-bottom:16px;resize:vertical;min-height:60px;line-height:1.5"></textarea>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer;user-select:none">
+      <input type="checkbox" id="exp-recurring" style="width:16px;height:16px;accent-color:#00e5a0"/>
+      <span style="font-size:13px;font-weight:600">Gasto recorrente (repetir todo mês)</span>
+    </label>
     <button class="btn-p" onclick="saveExpense()">+ Registrar Gasto</button>
   </div>
 </div>
@@ -487,6 +491,38 @@
       onkeydown="if(event.key==='Enter')confirmDeposit()"/>
     <button class="btn-p" onclick="confirmDeposit()">✓ Confirmar depósito</button>
   </div>
+</div>
+
+
+<!-- ══ MODAL EDITAR GASTO ══════════════════════════════════════════ -->
+<div id="modal-edit-expense" class="modal-bg" style="display:none" onclick="closeModal('modal-edit-expense')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <p style="font-weight:700;font-size:18px">✏️ Editar Gasto</p>
+      <button onclick="closeModal('modal-edit-expense')" class="btn-sm">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <input class="inp" type="date" id="edit-exp-date"/>
+      <select class="inp" id="edit-exp-cat">
+        <option>Alimentação</option><option>Transporte</option><option>Saúde</option>
+        <option>Lazer</option><option>Casa</option><option>Educação</option>
+        <option>Roupas</option><option>Outros</option>
+      </select>
+    </div>
+    <input class="inp" id="edit-exp-desc" placeholder="Descrição" style="margin-bottom:10px"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <input class="inp" type="number" id="edit-exp-amount" placeholder="Valor (R$)"/>
+      <select class="inp" id="edit-exp-card"></select>
+    </div>
+    <textarea class="inp" id="edit-exp-note" placeholder="Observação (opcional)" style="margin-bottom:16px;resize:vertical;min-height:56px;line-height:1.5"></textarea>
+    <button class="btn-p" onclick="saveEditExp()">Salvar Alterações</button>
+  </div>
+</div>
+
+
+<!-- ══ BANNER OFFLINE ════════════════════════════════════════════ -->
+<div id="offline-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9998;padding:10px 20px;text-align:center;font-size:13px;font-weight:700;background:#ffc94a;color:#1a1200;">
+  📡 Sem conexão — dados podem estar desatualizados
 </div>
 
 </body>

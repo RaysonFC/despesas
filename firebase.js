@@ -401,6 +401,7 @@ function showAppScreen() {
   if(window._checkAutoBackupOnLoad) window._checkAutoBackupOnLoad();
   if(window._checkNotificationsOnLoad) window._checkNotificationsOnLoad();
   if(window._checkAutoContribOnLoad)   window._checkAutoContribOnLoad();
+  if(window._checkRecurringOnLoad)      window._checkRecurringOnLoad();
 }
 function showLoginLoading(v) {
   const btn = document.getElementById("login-btn");

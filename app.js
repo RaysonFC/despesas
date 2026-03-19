@@ -621,7 +621,7 @@ function renderHome(){
   const recentH=filtExp.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(e=>{
     const card=S.cards.find(c=>c.id==e.cardId);
     const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";
-    return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5">📝 ${e.note}</p>`:""}</div>`;
+    return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}${e.recurring?` <span style="font-size:9px;background:${t.blue}18;color:${t.blue};padding:1px 6px;border-radius:5px;font-weight:700">🔁</span>`:""}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5">📝 ${e.note}</p>`:""}</div>`;
   }).join("");
 
   document.getElementById("tab-home").innerHTML=`${filterBar()}${daysH}${instH}<div class="grid-2" style="align-items:start"><div><p class="sec">Registrar Gasto</p><div class="crd"><div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px"><input class="inp" type="date" id="h-date" value="${today()}"/><select class="inp" id="h-cat">${Object.keys(CATS).map(c=>`<option>${c}</option>`).join("")}</select></div><input class="inp" id="h-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/><div class="grid-2 keep-2" style="gap:10px;margin-bottom:14px"><input class="inp" type="number" id="h-amount" placeholder="Valor (R$)" step="0.01"/><select class="inp" id="h-card"><option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select></div><textarea class="inp" id="h-note" placeholder="Observação (opcional)" style="margin-bottom:10px;resize:vertical;min-height:52px;font-size:13px;line-height:1.5"></textarea><button class="btn-p" onclick="saveHomeExp()">+ Registrar Gasto</button></div></div><div><p class="sec">Recentes</p><div class="crd" style="padding:0 20px">${!filtExp.length?`<p style="padding:20px 0;color:${t.muted};font-size:13px">Nenhum gasto ainda.</p>`:recentH}</div></div></div>`;
@@ -668,11 +668,73 @@ function renderCards(){
 }
 
 // ── ALL EXPENSES ──────────────────────────────────────────────────────
+// ── BUSCA DE GASTOS ───────────────────────────────────────────────────
+let _expSearch = "";
+function setExpSearch(v){ _expSearch=v.trim().toLowerCase(); scheduleRender("expenses"); }
+
+// ── EDITAR GASTO ──────────────────────────────────────────────────────
+let _editExpId = null;
+function openEditExp(id){
+  const e=S.expenses.find(x=>x.id===id);if(!e)return;
+  _editExpId=id;
+  const t=T();
+  document.getElementById("edit-exp-date").value=e.date||"";
+  document.getElementById("edit-exp-cat").value=e.cat||"Outros";
+  document.getElementById("edit-exp-desc").value=e.desc||"";
+  document.getElementById("edit-exp-amount").value=e.amount||"";
+  document.getElementById("edit-exp-note").value=e.note||"";
+  // popula cartões
+  document.getElementById("edit-exp-card").innerHTML=
+    `<option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}"${c.id==e.cardId?" selected":""}>${c.name}</option>`).join("")}`;
+  openModal("modal-edit-expense");
+}
+function saveEditExp(){
+  const e=S.expenses.find(x=>x.id===_editExpId);if(!e)return;
+  const dEl=document.getElementById("edit-exp-desc"),aEl=document.getElementById("edit-exp-amount");
+  const desc=dEl.value.trim(),amount=parseFloat(aEl.value);
+  const err=(el,msg)=>{el.classList.add("error");setTimeout(()=>el.classList.remove("error"),600);toast(msg,"err");};
+  if(!desc)  {err(dEl,"Informe a descrição!");return;}
+  if(!amount||amount<=0){err(aEl,"Valor deve ser maior que zero!");return;}
+  const data={
+    date:   document.getElementById("edit-exp-date").value   || e.date,
+    cat:    document.getElementById("edit-exp-cat").value    || e.cat,
+    desc,
+    amount,
+    cardId: document.getElementById("edit-exp-card").value   || null,
+    note:   document.getElementById("edit-exp-note").value.trim() || "",
+    recurring: e.recurring||false,
+  };
+  window.fbUpdate("expenses",_editExpId,data)
+    .then(()=>{toast("✅ Gasto atualizado!");closeModal("modal-edit-expense");})
+    .catch(err=>toast("Erro: "+err.message,"err"));
+}
+
 function renderAllExp(){
   const t=T(),fm=S.filterMonth;
-  const filtExp=fm?S.expenses.filter(e=>e.date?.startsWith(fm)):S.expenses;
+  let filtExp=fm?S.expenses.filter(e=>e.date?.startsWith(fm)):S.expenses;
+  // Filtro de busca por texto
+  if(_expSearch){
+    const q=_expSearch;
+    filtExp=filtExp.filter(e=>(e.desc||"").toLowerCase().includes(q)||(e.note||"").toLowerCase().includes(q));
+  }
   const total=filtExp.reduce((s,e)=>s+e.amount,0);
-  let html=filterBar()+`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px"><div><p class="sec" style="margin-bottom:2px">Gastos (${filtExp.length})</p>${filtExp.length?`<p style="font-size:13px;font-weight:700;color:${t.danger}">Total: ${fmt(total)}</p>`:""}</div><button onclick="openModal('modal-expense');document.getElementById('exp-date').value=today();populateExpCard()" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:9px 18px;color:${t.accent};font-weight:700;font-size:13px">+ Novo Gasto</button></div>`;
+  let html=filterBar()+`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px;position:relative">
+        <input class="inp" type="search" placeholder="🔍 Buscar por descrição ou observação..."
+          value="${_expSearch.replace(/"/g,'&quot;')}"
+          oninput="setExpSearch(this.value)"
+          style="padding-left:14px;font-size:13px"/>
+        ${_expSearch?`<button onclick="setExpSearch('');this.previousElementSibling.value=''" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:${t.muted};font-size:16px;cursor:pointer;padding:0">✕</button>`:""}
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div>
+        <p class="sec" style="margin-bottom:2px">Gastos (${filtExp.length}${_expSearch?" encontrados":""})</p>
+        ${filtExp.length?`<p style="font-size:13px;font-weight:700;color:${t.danger}">Total: ${fmt(total)}</p>`:""}
+      </div>
+      <button onclick="openModal('modal-expense');document.getElementById('exp-date').value=today();populateExpCard()" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:9px 18px;color:${t.accent};font-weight:700;font-size:13px">+ Novo Gasto</button>
+    </div>`;
   if(!filtExp.length){
     html+=`<div class="crd" style="text-align:center;padding:48px"><p style="font-size:40px;margin-bottom:12px">💸</p><p style="color:${t.muted}">Nenhum gasto registrado.</p></div>`;
   } else {
@@ -680,7 +742,7 @@ function renderAllExp(){
     Object.keys(CATS).forEach(cat=>{
       const items=filtExp.filter(e=>e.cat===cat);if(!items.length)return;
       const catTotal=items.reduce((s,e)=>s+e.amount,0);
-      html+=`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:14px;font-weight:700">${CATS[cat]} ${cat}</span><span style="font-size:13px;font-weight:700;color:${t.warn}">${fmt(catTotal)}</span></div><div class="crd" style="padding:0 18px">${items.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{const card=S.cards.find(c=>c.id==e.cardId);const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;margin-top:2px;align-items:center"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};margin-right:8px;white-space:nowrap">${fmt(e.amount)}</p><button onclick="delExp('${e.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 10px;color:${t.danger};font-size:12px;flex-shrink:0">✕</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:6px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5;white-space:pre-wrap">📝 ${e.note}</p>`:""}</div>`;}).join("")}</div></div>`;
+      html+=`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:14px;font-weight:700">${CATS[cat]} ${cat}</span><span style="font-size:13px;font-weight:700;color:${t.warn}">${fmt(catTotal)}</span></div><div class="crd" style="padding:0 18px">${items.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{const card=S.cards.find(c=>c.id==e.cardId);const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}</p><div style="display:flex;gap:6px;margin-top:2px;align-items:center"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};margin-right:8px;white-space:nowrap">${fmt(e.amount)}</p><button onclick="openEditExp('${e.id}')" style="background:${t.blue}15;border:none;border-radius:8px;padding:6px 10px;color:${t.blue};font-size:12px;flex-shrink:0;margin-right:4px">✏️</button><button onclick="delExp('${e.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 10px;color:${t.danger};font-size:12px;flex-shrink:0">✕</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:6px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5;white-space:pre-wrap">📝 ${e.note}</p>`:""}</div>`;}).join("")}</div></div>`;
     });
     html+=`</div>`;
   }
@@ -1032,11 +1094,13 @@ function saveExpense(){
   if(!ok){toast("Preencha descrição e valor!","err");return;}
   const cv=document.getElementById("exp-card").value;
   const note=document.getElementById("exp-note").value.trim();
-  const data={date:document.getElementById("exp-date").value,desc,amount,cat:document.getElementById("exp-cat").value,cardId:cv||null,note:note||""};
+  const recurring=document.getElementById("exp-recurring")?.checked||false;
+  const data={date:document.getElementById("exp-date").value,desc,amount,cat:document.getElementById("exp-cat").value,cardId:cv||null,note:note||"",recurring};
   window.fbAdd("expenses",data).then(()=>{
-    toast("✅ Gasto registrado!");
+    toast(recurring?"🔁 Gasto recorrente salvo!":"✅ Gasto registrado!");
     closeModal("modal-expense");
     document.getElementById("exp-note").value="";
+    const rc=document.getElementById("exp-recurring");if(rc)rc.checked=false;
   }).catch(e=>toast("Erro: "+e.message,"err"));
 }
 
@@ -1427,6 +1491,69 @@ window._checkAutoContribOnLoad = ()=>{
     }
   }, 4000);
 };
+
+// ── GASTOS RECORRENTES ───────────────────────────────────────────────
+// Relança gastos marcados como recorrentes no início de cada mês
+window._checkRecurringOnLoad = ()=>{
+  setTimeout(async ()=>{
+    const cm=curM();
+    const recurring=S.expenses.filter(e=>e.recurring);
+    for(const e of recurring){
+      const key=`recurring-${e.id}-${cm}`;
+      if(localStorage.getItem(key))continue;
+      // Verifica se já existe gasto igual esse mês (evita duplicata)
+      const already=S.expenses.find(x=>
+        x.recurring&&x.desc===e.desc&&x.amount===e.amount&&x.date?.startsWith(cm)&&x.id!==e.id
+      );
+      if(already){localStorage.setItem(key,"1");continue;}
+      const today_str=`${cm}-${String(new Date().getDate()).padStart(2,"0")}`;
+      const data={
+        date:today_str,
+        desc:e.desc,
+        amount:e.amount,
+        cat:e.cat,
+        cardId:e.cardId||null,
+        note:e.note||"",
+        recurring:true,
+        _fromRecurring:e.id,
+      };
+      try{
+        await window.fbAdd("expenses",data);
+        localStorage.setItem(key,"1");
+        toast(`🔁 Gasto recorrente lançado: ${e.desc}`,"info");
+      }catch(err){console.warn("Recurring error:",err);}
+    }
+  },6000);
+};
+
+// ── INDICADOR OFFLINE ─────────────────────────────────────────────────
+function initOfflineBanner(){
+  const banner=document.getElementById("offline-banner");
+  if(!banner)return;
+  const show=()=>{
+    banner.style.display="block";
+    // Empurra o layout para baixo
+    const layout=document.getElementById("layout");
+    if(layout)layout.style.marginTop="40px";
+    const login=document.getElementById("login-screen");
+    if(login)login.style.paddingTop="48px";
+  };
+  const hide=()=>{
+    banner.style.display="none";
+    const layout=document.getElementById("layout");
+    if(layout)layout.style.marginTop="";
+    const login=document.getElementById("login-screen");
+    if(login)login.style.paddingTop="";
+  };
+  if(!navigator.onLine)show();
+  window.addEventListener("offline",show);
+  window.addEventListener("online",()=>{
+    hide();
+    toast("📶 Conexão restaurada!","ok");
+  });
+}
+// Inicia o banner assim que o DOM carrega
+document.addEventListener("DOMContentLoaded",initOfflineBanner);
 
 // Checa backup automático ao entrar no app
 window._checkAutoBackupOnLoad = ()=>{
