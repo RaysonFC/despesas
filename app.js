@@ -131,6 +131,7 @@ function applyTheme(){
     #logout-btn{color:${t.danger}!important;font-weight:700;}
     #topbar{border-bottom:1px solid ${t.border}44;}
     #login-screen,#loading-screen,#setup-screen{background:${t.bg};}
+    #sync-indicator{font-size:11px;color:${t.muted};background:${t.cardLight};border-radius:10px;margin:0 2px 6px;}
   `;
   document.head.appendChild(st);
   const sd=document.getElementById("sync-dot");if(sd)sd.style.background=t.accent;
@@ -540,16 +541,6 @@ window.closeSidebar = () => {
 // ── LAYOUT ────────────────────────────────────────────────────────────
 function checkLayout(){
   const mob=window.innerWidth<768;
-  const tu=document.getElementById("topbar-user");
-  if(tu){
-    if(mob&&window._currentUser){
-      const t=T();
-      tu.style.display="flex";
-      tu.innerHTML=`<span style="font-size:13px;font-weight:700;color:${t.muted}">${window._currentUser.emoji||"👤"} ${window._currentUser.name||""}</span>`;
-    } else {
-      tu.style.display="none";
-    }
-  }
   if(!mob)closeSidebar();
 }
 window.addEventListener("resize",()=>{checkLayout();renderAll();});

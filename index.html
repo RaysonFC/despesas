@@ -159,9 +159,11 @@
     <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
     <button onclick="openBackup()" class="side-btn"><span class="icon">💾</span>Backup</button>
 
-    <!-- Rodapé da sidebar: salário + usuário + sair -->
+    <!-- Rodapé da sidebar: sync + salário + usuário + sair -->
     <div id="sidebar-bottom">
       <hr class="side-divider"/>
+      <!-- Indicador de sync -->
+      <div id="sync-indicator" style="padding:6px 12px;display:flex;align-items:center;gap:6px"><span id="sync-dot"></span><span id="sync-txt">Sincronizado</span></div>
       <div id="salary-sidebar"></div>
       <div id="user-badge"></div>
       <hr class="side-divider"/>
@@ -186,10 +188,6 @@
         </div>
       </div>
       <div id="topbar-right">
-        <!-- Indicador de sync -->
-        <div id="sync-indicator"><span id="sync-dot"></span><span id="sync-txt">Sincronizado</span></div>
-        <!-- Nome do usuário logado (só mobile, ao lado das infos de salário) -->
-        <div id="topbar-user" style="display:none;align-items:center"></div>
         <!-- Salário + Extra + Total -->
         <div id="salary-topbar"></div>
       </div>
