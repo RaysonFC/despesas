@@ -453,13 +453,15 @@ function updateInstPreview(){const total=parseFloat(document.getElementById("ins
 function saveInst(){
   const dEl=document.getElementById("inst-desc"),tEl=document.getElementById("inst-total"),nEl=document.getElementById("inst-n");
   const desc=dEl.value.trim(),total=parseFloat(tEl.value),n=parseInt(nEl.value);
-  let ok=true;
-  if(!desc){dEl.classList.add("error");setTimeout(()=>dEl.classList.remove("error"),600);ok=false;}
-  if(!total||total<=0){tEl.classList.add("error");setTimeout(()=>tEl.classList.remove("error"),600);ok=false;}
-  if(!n||n<1){nEl.classList.add("error");setTimeout(()=>nEl.classList.remove("error"),600);ok=false;}
-  if(!ok){toast("Preencha todos os campos!","err");return;}
+  const err=(el,msg)=>{el.classList.add("error");setTimeout(()=>el.classList.remove("error"),600);toast(msg,"err");};
+  if(!desc)           {err(dEl,"Informe o nome da dívida!");return;}
+  if(!total||total<=0){err(tEl,"O valor total deve ser maior que zero!");return;}
+  if(!n||n<1||isNaN(n)){err(nEl,"Número de parcelas deve ser pelo menos 1!");return;}
+  if(n>600)           {err(nEl,"Número de parcelas muito alto (máx. 600)!");return;}
+  const installmentValue=parseFloat((total/n).toFixed(2));
+  if(!isFinite(installmentValue)||installmentValue<=0){toast("Valor da parcela inválido. Verifique os campos.","err");return;}
   const dueDay=parseInt(document.getElementById("inst-due").value)||0;
-  const data={desc,cardId:S.selectedInstCard||null,totalAmount:total,installments:n,paidInstallments:0,installmentValue:parseFloat((total/n).toFixed(2)),startMonth:document.getElementById("inst-month").value,dueDay};
+  const data={desc,cardId:S.selectedInstCard||null,totalAmount:total,installments:n,paidInstallments:0,installmentValue,startMonth:document.getElementById("inst-month").value,dueDay};
   window.fbAdd("installments",data).then(()=>{toast("✅ Parcelamento adicionado!");closeModal("modal-inst");}).catch(e=>toast("Erro: "+e.message,"err"));
 }
 function openEditInst(id){const i=S.installments.find(x=>x.id===id);if(!i)return;editInstId=id;editInstCard=i.cardId;document.getElementById("edit-inst-desc").value=i.desc;document.getElementById("edit-inst-total").value=i.totalAmount;document.getElementById("edit-inst-n").value=i.installments;document.getElementById("edit-inst-paid").value=i.paidInstallments;document.getElementById("edit-inst-month").value=i.startMonth||curM();document.getElementById("edit-inst-due").value=i.dueDay||"";renderEditInstChips();openModal("modal-edit-inst");}
@@ -467,10 +469,19 @@ function renderEditInstChips(){let h=`<button class="chip ${!editInstCard?"activ
 function selEditInstCard(id){editInstCard=id;renderEditInstChips();}
 function saveEditInst(){
   const i=S.installments.find(x=>x.id===editInstId);if(!i)return;
-  const total=parseFloat(document.getElementById("edit-inst-total").value),n=parseInt(document.getElementById("edit-inst-n").value),paid=parseInt(document.getElementById("edit-inst-paid").value);
+  const tEl=document.getElementById("edit-inst-total"),nEl=document.getElementById("edit-inst-n"),pEl=document.getElementById("edit-inst-paid");
+  const total=parseFloat(tEl.value),n=parseInt(nEl.value),paid=parseInt(pEl.value);
+  const err=(el,msg)=>{el.classList.add("error");setTimeout(()=>el.classList.remove("error"),600);toast(msg,"err");};
+  if(!isNaN(total)&&total<=0){err(tEl,"O valor total deve ser maior que zero!");return;}
+  if(!isNaN(n)&&(n<1||n>600)){err(nEl,n<1?"Número de parcelas deve ser pelo menos 1!":"Número de parcelas muito alto (máx. 600)!");return;}
   const data={desc:document.getElementById("edit-inst-desc").value.trim()||i.desc,cardId:editInstCard||null};
   if(!isNaN(total)&&total>0)data.totalAmount=total;
-  if(!isNaN(n)&&n>=1){data.installments=n;data.installmentValue=parseFloat(((data.totalAmount||i.totalAmount)/n).toFixed(2));}
+  if(!isNaN(n)&&n>=1){
+    data.installments=n;
+    const iv=parseFloat(((data.totalAmount||i.totalAmount)/n).toFixed(2));
+    if(!isFinite(iv)||iv<=0){toast("Valor da parcela inválido.","err");return;}
+    data.installmentValue=iv;
+  }
   if(!isNaN(paid)&&paid>=0)data.paidInstallments=Math.min(paid,data.installments||i.installments);
   data.startMonth=document.getElementById("edit-inst-month").value||i.startMonth;
   data.dueDay=parseInt(document.getElementById("edit-inst-due").value)||0;
