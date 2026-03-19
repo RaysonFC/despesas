@@ -11,41 +11,45 @@ const THEMES={
     navBg:"#0d0d1a", sidebar:"#0d0d1a",
     cardShadow:"0 2px 16px #00000055",
   },
-  // ── LIGHT: fundo acinzentado, cards branco com sombra real ────────────
+  // ── LIGHT: fundo cinza azulado, cards brancos elevados ────────────────
+  // bg cinza → card branco: contraste claro. cardLight acinzentado p/ inputs
   light:{
     name:"Light", icon:"☀️",
-    bg:"#e8eaf2", card:"#ffffff", cardLight:"#f2f4fb",
-    accent:"#0099ff", danger:"#e53e5e", warn:"#d97706", blue:"#2b7de9",
-    text:"#0f0f1a", muted:"#6b7280", border:"#d1d5e0",
-    navBg:"#ffffff", sidebar:"#f0f2f9",
-    cardShadow:"0 2px 12px #0000001a, 0 1px 3px #00000010",
+    bg:"#dfe3ee", card:"#ffffff", cardLight:"#edf0f7",
+    accent:"#0066cc", danger:"#dc2626", warn:"#b45309", blue:"#1d6fb8",
+    text:"#0a0a18", muted:"#52586a", border:"#c4c9d8",
+    navBg:"#ffffff", sidebar:"#e8ecf6",
+    cardShadow:"0 2px 14px #00000018, 0 1px 4px #0000000e",
   },
-  // ── OCEAN: azul profundo, muito contraste, texto nítido ───────────────
+  // ── OCEAN: fundo quase preto azulado → card azul-petróleo, cardLight teal ─
+  // Quebra a monotonia: bg escuro, card médio, cardLight com tom teal
   ocean:{
     name:"Ocean", icon:"🌊",
-    bg:"#050f1a", card:"#0a1e30", cardLight:"#0f2d47",
-    accent:"#00d4ff", danger:"#ff5f6d", warn:"#ffd166", blue:"#58a6ff",
-    text:"#e0f0ff", muted:"#6899b8", border:"#1a3a58",
-    navBg:"#0a1e30", sidebar:"#050f1a",
-    cardShadow:"0 2px 20px #000000aa",
+    bg:"#04111e", card:"#082236", cardLight:"#0d3550",
+    accent:"#00d4ff", danger:"#ff5f6d", warn:"#ffd166", blue:"#4db8ff",
+    text:"#dff0ff", muted:"#5b8faa", border:"#0f3558",
+    navBg:"#082236", sidebar:"#04111e",
+    cardShadow:"0 4px 24px #000000bb",
   },
-  // ── SUNSET: roxo profundo, laranjas quentes, sem apagado ─────────────
+  // ── SUNSET: fundo roxo escuro → card cinza-chumbo escuro (sem roxo!) ──
+  // card é quase neutro escuro para quebrar a cor do fundo roxo
   sunset:{
     name:"Sunset", icon:"🌅",
-    bg:"#130818", card:"#1e0d2a", cardLight:"#2e1545",
-    accent:"#ff9a3c", danger:"#ff4d6d", warn:"#ffdc5e", blue:"#b47cf5",
-    text:"#f8eeff", muted:"#9a6fbf", border:"#3d1e5c",
-    navBg:"#1e0d2a", sidebar:"#130818",
-    cardShadow:"0 2px 20px #0000009a",
+    bg:"#1a0828", card:"#1d1528", cardLight:"#2c2040",
+    accent:"#ff9a3c", danger:"#ff4d6d", warn:"#ffdc5e", blue:"#c07af5",
+    text:"#faeeff", muted:"#a07cbf", border:"#3a2850",
+    navBg:"#1c1624", sidebar:"#1a0828",
+    cardShadow:"0 4px 24px #00000099",
   },
-  // ── FOREST: verde musgo escuro, texto nítido, sem muted lavado ────────
+  // ── FOREST: fundo verde-preto → card cinza-escuro esverdeado neutro ───
+  // card mais neutro (não verde puro) para criar separação do fundo
   forest:{
     name:"Forest", icon:"🌿",
-    bg:"#040d08", card:"#091410", cardLight:"#122018",
+    bg:"#030c05", card:"#101a12", cardLight:"#1c3224",
     accent:"#3ddc84", danger:"#ff6b6b", warn:"#e8c840", blue:"#50c8a0",
-    text:"#d8f5e4", muted:"#5a9a72", border:"#1a3a28",
-    navBg:"#091410", sidebar:"#040d08",
-    cardShadow:"0 2px 20px #00000099",
+    text:"#d8f5e4", muted:"#6db888", border:"#1e3e28",
+    navBg:"#101a12", sidebar:"#030c05",
+    cardShadow:"0 4px 24px #000000aa",
   },
   // ── ROSE: fundo rosado, cards com sombra rosada, texto escuro nítido ──
   rose:{
