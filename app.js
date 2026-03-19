@@ -27,7 +27,7 @@ const BRANDS={
 };
 const CATS={"Alimentação":"🍔","Transporte":"🚗","Saúde":"💊","Lazer":"🎮","Casa":"🏠","Educação":"📚","Roupas":"👕","Outros":"💸"};
 const GOAL_EMOJIS=["🏖️","✈️","💻","📱","🚗","🏠","💍","🎓","🏋️","🎮","📷","🎸","🌍","👶","💰","🎯"];
-const TAB_LABELS={home:"Início",cards:"Cartões",all:"Todos os Gastos",goals:"Metas",health:"Saúde Financeira"};
+const TAB_LABELS={home:"Início",cards:"Cartões",all:"Todos os Gastos",goals:"Metas",health:"Saúde Financeira",report:"Relatório"};
 
 // ── STATE (em memória — Firebase é a fonte da verdade) ─────────────────
 let S={
@@ -139,6 +139,267 @@ function applyTheme(){
   const sd=document.getElementById("sync-dot");if(sd)sd.style.background=t.accent;
   // Topbar border
   const tp=document.getElementById("topbar");if(tp)tp.style.borderBottomColor=t.border+"44";
+}
+
+// ── RELATÓRIO MENSAL ──────────────────────────────────────────────────
+let _reportMonth = "";
+function renderReport(){
+  const t=T();
+  if(!_reportMonth) _reportMonth=curM();
+  const m=_reportMonth;
+
+  // Dados do mês selecionado
+  const mExp=S.expenses.filter(e=>e.date?.startsWith(m));
+  const mInst=S.installments.filter(i=>{
+    if(i.paidInstallments>=i.installments)return false;
+    return !i.startMonth||i.startMonth<=m;
+  });
+  const eT=mExp.reduce((s,e)=>s+e.amount,0);
+  const iT=mInst.reduce((s,i)=>s+i.installmentValue,0);
+  const tot=eT+iT;
+  const income=S.salary+S.extra;
+  const rem=income-tot;
+  const pct=income?Math.min((tot/income)*100,100):0;
+  const hLabel=pct<50?"Ótimo! 😊":pct<75?"Atenção! 😐":"Crítico! 😰";
+  const hColor=pct<50?t.accent:pct<75?t.warn:t.danger;
+
+  // Meses disponíveis para seleção
+  const months=[...new Set(S.expenses.map(e=>e.date?.slice(0,7)).filter(Boolean))]
+    .sort((a,b)=>b.localeCompare(a)).slice(0,12);
+  if(!months.includes(m)&&months.length) months.unshift(m);
+  const monthOpts=months.map(mo=>`<option value="${mo}" ${mo===m?"selected":""}>${fmtMonth(mo)}</option>`).join("");
+
+  // Gastos por categoria
+  const catRows=Object.entries(CATS).map(([cat,emoji])=>{
+    const items=mExp.filter(e=>e.cat===cat);
+    const total=items.reduce((s,e)=>s+e.amount,0);
+    if(!total)return"";
+    const cp=(total/(tot||1))*100;
+    return`<tr>
+      <td style="padding:10px 0;border-bottom:1px solid ${t.border}22">${emoji} ${cat}</td>
+      <td style="padding:10px 0;border-bottom:1px solid ${t.border}22;text-align:right;font-weight:700;color:${t.text}">${fmt(total)}</td>
+      <td style="padding:10px 0;border-bottom:1px solid ${t.border}22;text-align:right;color:${t.muted};font-size:12px">${cp.toFixed(1)}%</td>
+    </tr>`;
+  }).join("");
+
+  // Gastos avulsos detalhados
+  const expRows=mExp.slice().sort((a,b)=>b.date.localeCompare(a.date))
+    .map(e=>{
+      const card=S.cards.find(c=>c.id==e.cardId);
+      return`<tr>
+        <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;font-size:13px">${fmtD(e.date)}</td>
+        <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;font-size:13px">${e.desc}</td>
+        <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;font-size:12px;color:${t.muted}">${CATS[e.cat]||""} ${e.cat}</td>
+        <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;font-size:12px;color:${t.muted}">${card?card.name:"Dinheiro"}</td>
+        <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;text-align:right;font-weight:700;color:${t.danger};font-size:13px">${fmt(e.amount)}</td>
+      </tr>`;
+    }).join("");
+
+  // Parcelas do mês
+  const instRows=mInst.map(i=>`<tr>
+    <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;font-size:13px">${i.desc}</td>
+    <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;font-size:12px;color:${t.muted}">${i.paidInstallments}/${i.installments}x</td>
+    <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;font-size:12px;color:${t.muted}">${i.dueDay?`Dia ${i.dueDay}`:"-"}</td>
+    <td style="padding:9px 0;border-bottom:1px solid ${t.border}22;text-align:right;font-weight:700;color:${t.warn};font-size:13px">${fmt(i.installmentValue)}</td>
+  </tr>`).join("");
+
+  const tStyle=`width:100%;border-collapse:collapse;font-size:13px;color:${t.text}`;
+  const thStyle=`font-size:10px;color:${t.muted};letter-spacing:1px;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid ${t.border};text-align:left;font-weight:700`;
+
+  document.getElementById("tab-report").innerHTML=`
+    <!-- Seletor de mês + botão exportar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <p class="sec" style="margin:0">Mês:</p>
+        <select class="inp" style="width:auto;padding:8px 12px;font-weight:700" onchange="_reportMonth=this.value;renderReport()">
+          ${monthOpts}
+        </select>
+      </div>
+      <button onclick="exportReportPDF()" style="background:${t.accent};border:none;border-radius:12px;padding:10px 20px;color:#000;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px">
+        📄 Exportar PDF
+      </button>
+    </div>
+
+    <!-- Cards de resumo -->
+    <div class="grid-3" style="margin-bottom:20px">
+      ${[
+        {l:"Renda",       v:fmt(income),  c:t.accent, i:"💰"},
+        {l:"Comprometido",v:fmt(tot),     c:t.danger, i:"📤"},
+        {l:"Disponível",  v:fmt(rem),     c:rem>=0?t.accent:t.danger,i:"✅"},
+        {l:"Avulsos",     v:fmt(eT),      c:t.blue,   i:"🧾"},
+        {l:"Parcelas",    v:fmt(iT),      c:t.warn,   i:"📅"},
+        {l:"Status",      v:hLabel,       c:hColor,   i:"📊"},
+      ].map(s=>`<div class="crd" style="padding:14px 16px">
+        <p style="font-size:18px;margin-bottom:6px">${s.i}</p>
+        <p style="font-size:11px;color:${t.muted};margin-bottom:4px">${s.l}</p>
+        <p style="font-size:16px;font-weight:800;color:${s.c}">${s.v}</p>
+      </div>`).join("")}
+    </div>
+
+    <!-- Barra de progresso -->
+    <div class="crd" style="padding:16px 20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px">
+        <span style="color:${t.muted}">Comprometido do orçamento</span>
+        <span style="font-weight:800;color:${hColor}">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="prog-bg" style="height:12px;border-radius:99px">
+        <div class="prog-fill" style="height:12px;width:${pct}%;background:linear-gradient(90deg,${t.accent},${pct>75?t.danger:t.warn});border-radius:99px;transition:width .6s"></div>
+      </div>
+      <p style="font-size:11px;color:${t.muted};margin-top:8px;text-align:right">${fmt(tot)} de ${fmt(income)}</p>
+    </div>
+
+    <div class="grid-2" style="align-items:start;gap:20px">
+      <div>
+        <!-- Gastos por Categoria -->
+        <p class="sec">Gastos por Categoria</p>
+        <div class="crd" style="padding:16px 20px;margin-bottom:20px">
+          ${catRows?`<table style="${tStyle}">
+            <thead><tr>
+              <th style="${thStyle}">Categoria</th>
+              <th style="${thStyle};text-align:right">Total</th>
+              <th style="${thStyle};text-align:right">%</th>
+            </tr></thead>
+            <tbody>${catRows}</tbody>
+            <tfoot><tr>
+              <td colspan="2" style="padding-top:12px;font-size:13px;font-weight:800">Total avulsos</td>
+              <td style="padding-top:12px;text-align:right;font-weight:800;color:${t.danger}">${fmt(eT)}</td>
+            </tr></tfoot>
+          </table>`:`<p style="color:${t.muted};font-size:13px">Nenhum gasto avulso neste mês.</p>`}
+        </div>
+
+        <!-- Parcelas do Mês -->
+        <p class="sec">Parcelas do Mês</p>
+        <div class="crd" style="padding:16px 20px;margin-bottom:20px">
+          ${instRows?`<table style="${tStyle}">
+            <thead><tr>
+              <th style="${thStyle}">Dívida</th>
+              <th style="${thStyle}">Parcela</th>
+              <th style="${thStyle}">Vencimento</th>
+              <th style="${thStyle};text-align:right">Valor</th>
+            </tr></thead>
+            <tbody>${instRows}</tbody>
+            <tfoot><tr>
+              <td colspan="3" style="padding-top:12px;font-size:13px;font-weight:800">Total parcelas</td>
+              <td style="padding-top:12px;text-align:right;font-weight:800;color:${t.warn}">${fmt(iT)}</td>
+            </tr></tfoot>
+          </table>`:`<p style="color:${t.muted};font-size:13px">Nenhuma parcela ativa neste mês.</p>`}
+        </div>
+      </div>
+
+      <div>
+        <!-- Lista detalhada de gastos -->
+        <p class="sec">Todos os Gastos Avulsos (${mExp.length})</p>
+        <div class="crd" style="padding:16px 20px;margin-bottom:20px">
+          ${expRows?`<table style="${tStyle}">
+            <thead><tr>
+              <th style="${thStyle}">Data</th>
+              <th style="${thStyle}">Descrição</th>
+              <th style="${thStyle}">Categoria</th>
+              <th style="${thStyle}">Cartão</th>
+              <th style="${thStyle};text-align:right">Valor</th>
+            </tr></thead>
+            <tbody>${expRows}</tbody>
+          </table>`:`<p style="color:${t.muted};font-size:13px">Nenhum gasto avulso neste mês.</p>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function exportReportPDF(){
+  const t=T();
+  const m=_reportMonth||curM();
+  const mExp=S.expenses.filter(e=>e.date?.startsWith(m));
+  const mInst=S.installments.filter(i=>{
+    if(i.paidInstallments>=i.installments)return false;
+    return !i.startMonth||i.startMonth<=m;
+  });
+  const eT=mExp.reduce((s,e)=>s+e.amount,0);
+  const iT=mInst.reduce((s,i)=>s+i.installmentValue,0);
+  const tot=eT+iT;
+  const income=S.salary+S.extra;
+  const rem=income-tot;
+  const pct=income?Math.min((tot/income)*100,100):0;
+
+  // Gastos por categoria para o PDF
+  const catBlock=Object.entries(CATS).map(([cat,emoji])=>{
+    const items=mExp.filter(e=>e.cat===cat);
+    const total=items.reduce((s,e)=>s+e.amount,0);
+    if(!total)return"";
+    const cp=(total/(tot||1))*100;
+    return`<tr><td>${emoji} ${cat}</td><td>${fmt(total)}</td><td>${cp.toFixed(1)}%</td></tr>`;
+  }).join("");
+
+  const expBlock=mExp.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{
+    const card=S.cards.find(c=>c.id==e.cardId);
+    return`<tr><td>${fmtD(e.date)}</td><td>${e.desc}</td><td>${e.cat}</td><td>${card?card.name:"Dinheiro"}</td><td>${fmt(e.amount)}</td></tr>`;
+  }).join("");
+
+  const instBlock=mInst.map(i=>`<tr><td>${i.desc}</td><td>${i.paidInstallments}/${i.installments}x</td><td>${i.dueDay?`Dia ${i.dueDay}`:"-"}</td><td>${fmt(i.installmentValue)}</td></tr>`).join("");
+
+  const barW=Math.round(pct*4); // max 400px
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+  <title>Relatório ${fmtMonth(m)} — Meu Orçamento</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:system-ui,sans-serif;color:#1a1a2e;background:#fff;padding:32px;font-size:13px;}
+    h1{font-size:22px;font-weight:800;margin-bottom:4px;}
+    .sub{color:#888;font-size:12px;margin-bottom:24px;}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+    .card{border:1px solid #e0e0f0;border-radius:10px;padding:14px;}
+    .card-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+    .card-val{font-size:18px;font-weight:800;}
+    .bar-wrap{background:#eee;border-radius:99px;height:10px;margin:8px 0;}
+    .bar-fill{height:10px;border-radius:99px;background:linear-gradient(90deg,#00b37e,${pct>75?"#ff4d6d":"#ffc94a"});}
+    h2{font-size:14px;font-weight:700;margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid #eee;}
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{text-align:left;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:2px solid #eee;}
+    td{padding:8px 0;border-bottom:1px solid #f0f0f8;}
+    td:last-child,th:last-child{text-align:right;}
+    .total-row td{font-weight:800;border-top:2px solid #eee;border-bottom:none;padding-top:10px;}
+    .footer{margin-top:32px;text-align:center;font-size:10px;color:#bbb;}
+    @media print{body{padding:20px;}@page{margin:16mm;}}
+  </style>
+  </head><body>
+  <h1>💰 Relatório Mensal</h1>
+  <p class="sub">${fmtMonth(m)} &nbsp;·&nbsp; Gerado em ${new Date().toLocaleString("pt-BR")} &nbsp;·&nbsp; Meu Orçamento</p>
+
+  <div class="grid">
+    <div class="card"><div class="card-label">Renda</div><div class="card-val" style="color:#00b37e">${fmt(income)}</div></div>
+    <div class="card"><div class="card-label">Comprometido</div><div class="card-val" style="color:#ff4d6d">${fmt(tot)}</div></div>
+    <div class="card"><div class="card-label">Disponível</div><div class="card-val" style="color:${rem>=0?"#00b37e":"#ff4d6d"}">${fmt(rem)}</div></div>
+    <div class="card"><div class="card-label">Gastos Avulsos</div><div class="card-val" style="color:#2b7de9">${fmt(eT)}</div></div>
+    <div class="card"><div class="card-label">Parcelas</div><div class="card-val" style="color:#c87800">${fmt(iT)}</div></div>
+    <div class="card"><div class="card-label">% da renda</div><div class="card-val" style="color:${pct<50?"#00b37e":pct<75?"#c87800":"#ff4d6d"}">${pct.toFixed(1)}%</div></div>
+  </div>
+  <div class="bar-wrap"><div class="bar-fill" style="width:${barW}px"></div></div>
+
+  ${catBlock?`<h2>Gastos por Categoria</h2>
+  <table><thead><tr><th>Categoria</th><th>Total</th><th>%</th></tr></thead>
+  <tbody>${catBlock}</tbody>
+  <tfoot><tr class="total-row"><td>Total avulsos</td><td></td><td>${fmt(eT)}</td></tr></tfoot>
+  </table>`:""}
+
+  ${instBlock?`<h2>Parcelas do Mês</h2>
+  <table><thead><tr><th>Dívida</th><th>Progresso</th><th>Vencimento</th><th>Valor/mês</th></tr></thead>
+  <tbody>${instBlock}</tbody>
+  <tfoot><tr class="total-row"><td>Total parcelas</td><td></td><td></td><td>${fmt(iT)}</td></tr></tfoot>
+  </table>`:""}
+
+  ${expBlock?`<h2>Gastos Avulsos — Detalhado (${mExp.length})</h2>
+  <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th></tr></thead>
+  <tbody>${expBlock}</tbody>
+  </table>`:""}
+
+  <div class="footer">Meu Orçamento — Rayson &amp; Alessandra &nbsp;·&nbsp; Exportado em ${new Date().toLocaleString("pt-BR")}</div>
+  </body></html>`;
+
+  const w=window.open("","_blank","width=900,height=700");
+  if(!w){toast("Pop-up bloqueado! Permita pop-ups para exportar.","err");return;}
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ w.print(); }, 400);
 }
 
 // ── RENDER INTELIGENTE ───────────────────────────────────────────────
@@ -274,7 +535,7 @@ function renderStatus(){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function setTab(tab){
-  ["home","cards","all","goals","health"].forEach(id=>{
+  ["home","cards","all","goals","health","report"].forEach(id=>{
     document.getElementById("tab-"+id).style.display=id===tab?"block":"none";
     document.getElementById("side-"+id)?.classList.toggle("active",id===tab);
     document.getElementById("nav-"+id)?.classList.toggle("active",id===tab);
@@ -288,6 +549,7 @@ function setTab(tab){
 function renderTab(t){
   if(t==="home")renderHome();else if(t==="cards")renderCards();
   else if(t==="all")renderAllExp();else if(t==="goals")renderGoals();else if(t==="health")renderHealth();
+  else if(t==="report")renderReport();
 }
 
 // ── FILTER BAR ────────────────────────────────────────────────────────
