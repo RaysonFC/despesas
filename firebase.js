@@ -310,25 +310,25 @@ function startListeners(user) {
     if (myTheme && myTheme !== S.theme) {
       S.theme = myTheme;
     }
-    if (document.getElementById("layout").style.display !== "none") renderAll();
+    if (document.getElementById("layout").style.display !== "none") scheduleRender("house");
   }));
 
   // Gastos, cartões, parcelamentos, metas — todos compartilhados
   unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "expenses"), snap => {
     S.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (document.getElementById("layout").style.display !== "none") renderAll();
+    if (document.getElementById("layout").style.display !== "none") scheduleRender("expenses");
   }));
   unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "cards"), snap => {
     S.cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (document.getElementById("layout").style.display !== "none") renderAll();
+    if (document.getElementById("layout").style.display !== "none") scheduleRender("cards");
   }));
   unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "installments"), snap => {
     S.installments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (document.getElementById("layout").style.display !== "none") renderAll();
+    if (document.getElementById("layout").style.display !== "none") scheduleRender("installments");
   }));
   unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "goals"), snap => {
     S.goals = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (document.getElementById("layout").style.display !== "none") renderAll();
+    if (document.getElementById("layout").style.display !== "none") scheduleRender("goals");
   }));
 
   showAppScreen();

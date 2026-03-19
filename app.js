@@ -141,13 +141,48 @@ function applyTheme(){
   const tp=document.getElementById("topbar");if(tp)tp.style.borderBottomColor=t.border+"44";
 }
 
+// ── RENDER INTELIGENTE ───────────────────────────────────────────────
+// Dirty flags: cada coleção marca quais seções precisam re-renderizar
+const DIRTY_MAP = {
+  house:        ["theme","salary","status","tab"],
+  expenses:     ["status","tab","salary"],
+  cards:        ["status","tab"],
+  installments: ["status","tab","salary"],
+  goals:        ["tab"],
+  all:          ["theme","salary","status","tab","badge"],
+};
+
+let _dirty    = new Set();
+let _rafId    = null;
+
+function scheduleRender(source){
+  const flags = DIRTY_MAP[source] || DIRTY_MAP["all"];
+  flags.forEach(f => _dirty.add(f));
+  if(_rafId) return;                     // já está agendado
+  _rafId = requestAnimationFrame(()=>{
+    _rafId = null;
+    _flush();
+  });
+}
+
+function _flush(){
+  const d = _dirty;
+  _dirty   = new Set();
+
+  if(d.has("theme"))  applyTheme();
+  if(d.has("salary")) { renderSalarySidebar(); renderSalaryTopbar(); }
+  if(d.has("status")) {
+    renderStatus();
+    const sc=document.getElementById("status-card");
+    if(sc){sc.classList.remove("tab-enter");void sc.offsetWidth;sc.classList.add("tab-enter");}
+  }
+  if(d.has("tab"))    renderTab(S.currentTab);
+  if(d.has("badge"))  updateUserBadge();
+}
+
+// Mantém compatibilidade — qualquer chamada a renderAll() ainda funciona
 function renderAll(){
-  applyTheme();
-  renderSalarySidebar();renderSalaryTopbar();renderStatus();renderTab(S.currentTab);
-  updateUserBadge();
-  // Anima status-card sempre que recarrega
-  const sc=document.getElementById("status-card");
-  if(sc){sc.classList.remove("tab-enter");void sc.offsetWidth;sc.classList.add("tab-enter");}
+  scheduleRender("all");
 }
 
 function renderSalarySidebar(){
@@ -261,7 +296,7 @@ function filterBar(){
   const months=[...new Set(S.expenses.map(e=>e.date?.slice(0,7)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
   return`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px"><span style="font-size:11px;color:${t.muted};letter-spacing:1px;text-transform:uppercase;font-weight:700;flex-shrink:0">Filtrar:</span><button class="chip ${!fm?"active":""}" onclick="setFilter('')">Tudo</button>${months.slice(0,7).map(m=>`<button class="chip ${fm===m?"active":""}" onclick="setFilter('${m}')">${fmtMonth(m)}</button>`).join("")}</div>`;
 }
-function setFilter(m){S.filterMonth=m;renderAll();}
+function setFilter(m){S.filterMonth=m;scheduleRender("expenses");}
 
 // ── HOME ──────────────────────────────────────────────────────────────
 function renderHome(){
@@ -609,7 +644,7 @@ function payInst(id,ctx){
     if(done)toast(`🎉 ${i.desc} quitado!`);else toast(`✅ Parcela ${newPaid}/${i.installments} paga!`);
     if(done){
       const el=document.getElementById(ctx==="h"?`inst-h-${id}`:`inst-${id}`);
-      if(el){el.classList.add("dust-out");setTimeout(()=>renderAll(),560);}
+      if(el){el.classList.add("dust-out");setTimeout(()=>scheduleRender("installments"),560);}
     }
   }).catch(e=>toast("Erro: "+e.message,"err"));
 }
@@ -627,7 +662,7 @@ function openThemes(){
   document.getElementById("theme-list").innerHTML=Object.entries(THEMES).map(([key,th])=>{const a=key===S.theme;return`<button onclick="setTheme('${key}')" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;width:100%;border:1px solid ${a?t.accent:t.border};background:${a?t.accent+"18":t.cardLight};cursor:pointer;margin-bottom:8px;text-align:left"><div style="display:flex;gap:4px;flex-shrink:0"><div style="width:22px;height:22px;border-radius:50%;background:${th.bg};border:2px solid ${th.border}"></div><div style="width:22px;height:22px;border-radius:50%;background:${th.card};border:2px solid ${th.border}"></div><div style="width:22px;height:22px;border-radius:50%;background:${th.accent}"></div></div><span style="font-size:22px">${th.icon}</span><span style="font-size:14px;font-weight:700;color:${a?t.accent:t.text};flex:1">${th.name}</span>${a?`<span style="font-size:12px;color:${t.accent};font-weight:700">✓ Ativo</span>`:""}</button>`;}).join("");
   openModal("modal-themes");
 }
-function setTheme(key){S.theme=key;window.fbSaveTheme(key);closeModal("modal-themes");renderAll();}
+function setTheme(key){S.theme=key;window.fbSaveTheme(key);closeModal("modal-themes");scheduleRender("house");}
 
 function openSalaryModal(){document.getElementById("salary-input").value=S.salary||"";document.getElementById("extra-input").value=S.extra||"";updateIncomePreview();openModal("modal-salary");}
 function updateIncomePreview(){const s=parseFloat(document.getElementById("salary-input").value)||0,e=parseFloat(document.getElementById("extra-input").value)||0;document.getElementById("total-income-preview").textContent="Total em conta: "+fmt(s+e);}
@@ -802,7 +837,11 @@ function checkLayout(){
   const mob=window.innerWidth<768;
   if(!mob)closeSidebar();
 }
-window.addEventListener("resize",()=>{checkLayout();renderAll();});
+let _resizeT=null;
+window.addEventListener("resize",()=>{
+  clearTimeout(_resizeT);
+  _resizeT=setTimeout(()=>{checkLayout();scheduleRender("all");},200);
+});
 
 // ── BACKUP ────────────────────────────────────────────────────────────
 let _backupData = null;
