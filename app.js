@@ -79,7 +79,7 @@ const BRANDS={
 };
 const CATS={"Alimentação":"🍔","Transporte":"🚗","Saúde":"💊","Lazer":"🎮","Casa":"🏠","Educação":"📚","Roupas":"👕","Outros":"💸"};
 const GOAL_EMOJIS=["🏖️","✈️","💻","📱","🚗","🏠","💍","🎓","🏋️","🎮","📷","🎸","🌍","👶","💰","🎯"];
-const TAB_LABELS={home:"Início",cards:"Cartões",all:"Todos os Gastos",goals:"Metas",health:"Saúde Financeira",report:"Relatório",calendar:"Calendário"};
+const TAB_LABELS={home:"Início",cards:"Cartões",goals:"Metas",health:"Saúde Financeira",report:"Relatório",calendar:"Calendário"};
 
 // ── STATE (em memória — Firebase é a fonte da verdade) ─────────────────
 let S={
@@ -385,7 +385,157 @@ function renderCalendar(){
   html += `</div></div>`; // fecha grid e crd
 
   window._calEvents = events; // cache para _calDayClick
+
+  // ── SEÇÃO: REGISTRAR GASTO ────────────────────────────────────────
+  html += `
+    <div style="margin-top:28px">
+      <p class="sec">Registrar Gasto</p>
+      <div class="crd">
+        <div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px">
+          <input class="inp" type="date" id="cal-date" value="${todayStr}"/>
+          <select class="inp" id="cal-cat">${Object.keys(CATS).map(cat=>`<option>${cat}</option>`).join("")}</select>
+        </div>
+        <input class="inp" id="cal-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/>
+        <div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px">
+          <input class="inp" type="number" id="cal-amount" placeholder="Valor (R$)" step="0.01"/>
+          <select class="inp" id="cal-card">
+            <option value="">💵 Dinheiro</option>
+            ${S.cards.map(cd=>`<option value="${cd.id}">${cd.name}</option>`).join("")}
+          </select>
+        </div>
+        <textarea class="inp" id="cal-note" placeholder="Observação (opcional)" style="margin-bottom:12px;resize:vertical;min-height:48px;font-size:13px;line-height:1.5"></textarea>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;font-size:13px;font-weight:600">
+          <input type="checkbox" id="cal-recurring" style="width:15px;height:15px;accent-color:${t.accent}"/>
+          Gasto recorrente (repetir todo mês)
+        </label>
+        <button class="btn-p" onclick="saveCalExp()">+ Registrar Gasto</button>
+      </div>
+    </div>`;
+
+  // ── SEÇÃO: GASTOS DO MÊS ─────────────────────────────────────────
+  const monthExps = S.expenses
+    .filter(e => e.date?.startsWith(monthStr))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  html += `<div style="margin-top:28px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <p class="sec" style="margin-bottom:0">Gastos do Mês (${monthExps.length})</p>
+      ${monthExps.length ? `<span style="font-size:13px;font-weight:700;color:${t.danger}">${fmt(monthExps.reduce((s,e)=>s+e.amount,0))}</span>` : ""}
+    </div>`;
+
+  if(!monthExps.length){
+    html += `<div class="crd" style="text-align:center;padding:32px">
+      <p style="font-size:32px;margin-bottom:8px">💸</p>
+      <p style="color:${t.muted};font-size:13px">Nenhum gasto registrado neste mês.</p>
+    </div>`;
+  } else {
+    html += `<div class="crd" style="padding:0 18px">`;
+    monthExps.forEach(e => {
+      const card = S.cards.find(cd => cd.id == e.cardId);
+      const who  = window._houseMembers && e._createdBy && window._houseMembers[e._createdBy]
+        ? `<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`
+        : "";
+      html += `<div class="row" style="flex-direction:column;align-items:stretch;gap:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:38px;height:38px;background:${t.cardLight};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${CATS[e.cat]||"💸"}</div>
+          <div style="flex:1;min-width:0">
+            <p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${e.desc}${e.recurring?` <span style="font-size:9px;background:${t.blue}18;color:${t.blue};padding:1px 5px;border-radius:5px;font-weight:700">🔁</span>`:""}
+            </p>
+            <div style="display:flex;gap:6px;margin-top:2px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>
+              ${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}
+              ${who}
+            </div>
+          </div>
+          <p style="font-weight:700;color:${t.danger};white-space:nowrap;margin-right:6px">${fmt(e.amount)}</p>
+          <button data-comment-id="${e.id}" onclick="openComments('${e.id}')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:5px 8px;color:${t.muted};font-size:11px;flex-shrink:0;margin-right:4px">💬</button>
+          <button onclick="openEditExp('${e.id}')" style="background:${t.blue}15;border:none;border-radius:8px;padding:6px 9px;color:${t.blue};font-size:12px;flex-shrink:0;margin-right:4px">✏️</button>
+          <button onclick="delExp('${e.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 9px;color:${t.danger};font-size:12px;flex-shrink:0">✕</button>
+        </div>
+        ${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5;white-space:pre-wrap">📝 ${e.note}</p>`:""}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  // ── SEÇÃO: DÍVIDAS / PARCELAMENTOS ───────────────────────────────
+  html += `<div style="margin-top:28px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <p class="sec" style="margin-bottom:0">Dívidas &amp; Parcelamentos (${S.installments.length})</p>
+      <button onclick="openAddInst()" style="background:${t.warn}18;border:1px solid ${t.warn}44;border-radius:10px;padding:8px 16px;color:${t.warn};font-weight:700;font-size:12px">+ Nova Dívida</button>
+    </div>`;
+
+  if(!S.installments.length){
+    html += `<div class="crd" style="text-align:center;padding:32px">
+      <p style="font-size:32px;margin-bottom:8px">✅</p>
+      <p style="color:${t.muted};font-size:13px">Nenhuma dívida cadastrada.</p>
+    </div>`;
+  } else {
+    S.installments.forEach(i => {
+      const card = S.cards.find(cd => cd.id == i.cardId);
+      const prog = (i.paidInstallments / i.installments) * 100;
+      const done = i.paidInstallments >= i.installments;
+      const overdue = !done && i.dueDay > 0 && new Date().getDate() > i.dueDay;
+      html += `<div class="crd" id="inst-${i.id}" style="margin-bottom:10px;opacity:${done?.5:1};transition:opacity .3s">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+              <p style="font-size:15px;font-weight:700">${i.desc}</p>
+              ${done?`<span class="badge" style="background:${t.accent}18;color:${t.accent}">QUITADO</span>`:""}
+              ${overdue?`<span class="badge" style="background:${t.danger}18;color:${t.danger}">ATRASADA</span>`:""}
+            </div>
+            ${card?`<div style="margin-bottom:6px">${cardHTML(card,true)}</div>`:`<span class="badge" style="background:${t.cardLight};color:${t.muted}">💵 Sem cartão</span>`}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:12px">
+            <p style="font-size:22px;font-weight:800;color:${overdue?t.danger:t.warn}">${fmt(i.installmentValue)}</p>
+            <p style="font-size:10px;color:${t.muted}">por mês</p>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:${t.muted};margin-bottom:8px">
+          <span>${i.paidInstallments}/${i.installments} parcelas${i.dueDay?` · Vence dia ${i.dueDay}`:""}</span>
+          <span>Restante: ${fmt((i.installments-i.paidInstallments)*i.installmentValue)}</span>
+        </div>
+        <div class="prog-bg" style="height:5px;margin-bottom:12px">
+          <div class="prog-fill" style="width:${prog}%;background:${done?t.accent:overdue?t.danger:t.warn}"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          ${!done?`<button onclick="payInst('${i.id}','calendar')" style="flex:1;background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:10px;color:${t.accent};font-weight:700;font-size:12px">✓ Pagar parcela</button>`:""}
+          <button onclick="openEditInst('${i.id}')" style="background:${t.blue}15;border:1px solid ${t.blue}33;border-radius:10px;padding:10px 14px;color:${t.blue};font-size:12px;font-weight:700">✏️</button>
+          <button onclick="delInst('${i.id}')" style="background:${t.danger}15;border:none;border-radius:10px;padding:10px 14px;color:${t.danger};font-size:12px">✕</button>
+        </div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
   document.getElementById("tab-calendar").innerHTML = html;
+}
+
+
+// ── SALVAR GASTO PELO CALENDÁRIO ─────────────────────────────────────
+function saveCalExp(){
+  const dEl=document.getElementById("cal-desc"),aEl=document.getElementById("cal-amount");
+  const desc=dEl.value.trim(),amount=parseFloat(aEl.value);
+  let ok=true;
+  if(!desc){dEl.classList.add("error");setTimeout(()=>dEl.classList.remove("error"),600);ok=false;}
+  if(!amount||amount<=0){aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);ok=false;}
+  if(!ok){toast("Preencha descrição e valor!","err");return;}
+  const cv        = document.getElementById("cal-card").value;
+  const note      = (document.getElementById("cal-note")?.value||"").trim();
+  const recurring = document.getElementById("cal-recurring")?.checked||false;
+  const date      = document.getElementById("cal-date").value || today();
+  const data={date,desc,amount,cat:document.getElementById("cal-cat").value,cardId:cv||null,note:note||"",recurring};
+  dEl.value="";aEl.value="";
+  const nn=document.getElementById("cal-note");if(nn)nn.value="";
+  const rc=document.getElementById("cal-recurring");if(rc)rc.checked=false;
+  // Atualiza o mês do calendário para o mês do gasto registrado
+  const [ey,em]=date.split("-").map(Number);
+  _calYear=ey;_calMonth=em-1;
+  window.fbAdd("expenses",data)
+    .then(()=>toast(recurring?"🔁 Gasto recorrente salvo!":"✅ Gasto registrado!"))
+    .catch(e=>toast("Erro: "+e.message,"err"));
 }
 
 function _calNav(delta){
@@ -848,7 +998,7 @@ function renderStatus(){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function setTab(tab){
-  ["home","cards","all","goals","health","report","calendar"].forEach(id=>{
+  ["home","cards","goals","health","report","calendar"].forEach(id=>{
     document.getElementById("tab-"+id).style.display=id===tab?"block":"none";
     document.getElementById("side-"+id)?.classList.toggle("active",id===tab);
     document.getElementById("nav-"+id)?.classList.toggle("active",id===tab);
@@ -861,7 +1011,7 @@ function setTab(tab){
 }
 function renderTab(t){
   if(t==="home")renderHome();else if(t==="cards")renderCards();
-  else if(t==="all")renderAllExp();else if(t==="goals")renderGoals();else if(t==="health")renderHealth();
+  else if(t==="goals")renderGoals();else if(t==="health")renderHealth();
   else if(t==="report")renderReport();
   else if(t==="calendar")renderCalendar();
 }
