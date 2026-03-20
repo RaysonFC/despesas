@@ -941,7 +941,8 @@ function renderAll(){
 
 function renderSalarySidebar(){
   const t=T();
-  const total=getTotalIncome(curM());
+  const iV    = totalIncomeVar(curM());
+  const total = S.salary + S.extra + iV;
   const el=document.getElementById("salary-sidebar");if(!el)return;
   el.innerHTML=`<div style="padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
     <button onclick="openSalaryModal()" style="display:block;width:100%;background:none;border:none;text-align:left;padding:0;cursor:pointer;margin-bottom:6px">
@@ -1029,6 +1030,7 @@ function renderStatus(){
   // Contribuições automáticas de metas ativas (não concluídas)
   const gT=S.goals.filter(g=>g.monthlyContrib>0&&g.saved<g.target)
                   .reduce((s,g)=>s+g.monthlyContrib,0);
+  const iV=totalIncomeVar(cm);
   const totalIncome=getTotalIncome(cm),tot=eT+iT+gT,rem=totalIncome-tot;
   const pct=Math.min((tot/(totalIncome||1))*100,100);
   const h=pct<50?{l:"Ótimo!",c:t.accent}:pct<75?{l:"Atenção",c:t.warn}:{l:"Crítico",c:t.danger};
