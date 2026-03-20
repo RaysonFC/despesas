@@ -547,32 +547,77 @@ function renderCalendar(){
 
 
 // ── SALVAR GASTO PELO CALENDÁRIO ─────────────────────────────────────
-function saveCalExp(){
-  const dEl=document.getElementById("cal-desc"),aEl=document.getElementById("cal-amount");
-  const desc=dEl.value.trim(),amount=parseFloat(aEl.value);
-  let ok=true;
-  if(!desc){dEl.classList.add("error");setTimeout(()=>dEl.classList.remove("error"),600);ok=false;}
-  if(!amount||amount<=0){aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);ok=false;}
-  if(!ok){toast("Preencha descrição e valor!","err");return;}
-  const cv        = document.getElementById("cal-card").value;
-  const note      = (document.getElementById("cal-note")?.value||"").trim();
-  const recurring = document.getElementById("cal-recurring")?.checked||false;
-  const date      = document.getElementById("cal-date").value || today();
-  const calSplit  = document.getElementById("cal-split");
-  const calSplitRatio = calSplit?.checked ? parseInt(document.getElementById("cal-split-pct")?.value||"50") : null;
-  const data={date,desc,amount,cat:document.getElementById("cal-cat").value,cardId:cv||null,note:note||"",recurring,splitRatio:calSplitRatio};
-  dEl.value="";aEl.value="";
-  const nn=document.getElementById("cal-note");if(nn)nn.value="";
-  const rc=document.getElementById("cal-recurring");if(rc)rc.checked=false;
-  // Atualiza o mês do calendário para o mês do gasto registrado
-  const [ey,em]=date.split("-").map(Number);
-  _calYear=ey;_calMonth=em-1;
-  window.fbAdd("expenses",data)
+
+// ── SALVAR GASTO — FUNÇÃO GENÉRICA ───────────────────────────────────
+// Usada por saveHomeExp("h-"), saveCalExp("cal-"), saveExpense("exp-")
+// opts.closeModal  — id do modal a fechar após salvar
+// opts.onSuccess   — callback(date) chamado após salvar com sucesso
+function _saveExpGeneric(prefix, opts={}){
+  const g  = id => document.getElementById(prefix+id);
+  const gv = id => g(id)?.value ?? "";
+
+  // Validação
+  const dEl = g("desc"), aEl = g("amount");
+  const desc   = dEl?.value.trim() || "";
+  const amount = parseFloat(aEl?.value);
+  let ok = true;
+  if(!desc){
+    dEl?.classList.add("error");
+    setTimeout(()=>dEl?.classList.remove("error"),600);
+    ok = false;
+  }
+  if(!amount || amount <= 0){
+    aEl?.classList.add("error");
+    setTimeout(()=>aEl?.classList.remove("error"),600);
+    ok = false;
+  }
+  if(!ok){ toast("Preencha descrição e valor!","err"); return; }
+
+  // Leitura dos campos
+  const date      = gv("date") || today();
+  const cat       = gv("cat")  || "Outros";
+  const cardId    = gv("card") || null;
+  const note      = gv("note").trim();
+  const recurring = g("recurring")?.checked || false;
+  const splitEl   = g("split");
+  const splitRatio = splitEl?.checked
+    ? parseInt(g("split-pct")?.value || "50")
+    : null;
+
+  const data = { date, desc, amount, cat, cardId: cardId||null,
+                 note: note||"", recurring, splitRatio };
+
+  // Limpa os campos imediatamente (UX responsiva)
+  if(dEl)  dEl.value  = "";
+  if(aEl)  aEl.value  = "";
+  const noteEl = g("note");   if(noteEl)  noteEl.value  = "";
+  const recEl  = g("recurring"); if(recEl) recEl.checked = false;
+  if(splitEl) splitEl.checked = false;
+  const splitWrap = g("split-wrap"); if(splitWrap) splitWrap.style.display="none";
+  const splitLbl  = document.getElementById(prefix+"split-lbl");
+  if(splitLbl) splitLbl.textContent = "50%";
+
+  // Persiste no Firebase
+  window.fbAdd("expenses", data)
     .then(()=>{
-      toast(recurring?"🔁 Gasto recorrente salvo!":calSplitRatio!=null?"🤝 Gasto dividido salvo!":"✅ Gasto registrado!");
-      setTimeout(()=>_checkCatLimitsAlert(date?.slice(0,7)||curM()),800);
+      const msg = recurring    ? "🔁 Gasto recorrente salvo!"
+                : splitRatio != null ? "🤝 Gasto dividido salvo!"
+                : "✅ Gasto registrado!";
+      toast(msg);
+      setTimeout(()=>_checkCatLimitsAlert(date.slice(0,7)||curM()), 800);
+      if(opts.closeModal) closeModal(opts.closeModal);
+      if(opts.onSuccess)  opts.onSuccess(date);
     })
-    .catch(e=>toast("Erro: "+e.message,"err"));
+    .catch(e => toast("Erro: "+e.message, "err"));
+}
+
+function saveCalExp(){
+  _saveExpGeneric("cal-", {
+    onSuccess: date => {
+      const [ey,em]=date.split("-").map(Number);
+      _calYear=ey; _calMonth=em-1;
+    }
+  });
 }
 
 function _calNav(delta){
@@ -1156,23 +1201,7 @@ function renderHome(){
 }
 
 function saveHomeExp(){
-  const dEl=document.getElementById("h-desc"),aEl=document.getElementById("h-amount");
-  const desc=dEl.value.trim(),amount=parseFloat(aEl.value);
-  let ok=true;
-  if(!desc){dEl.classList.add("error");setTimeout(()=>dEl.classList.remove("error"),600);ok=false;}
-  if(!amount||amount<=0){aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);ok=false;}
-  if(!ok){toast("Preencha descrição e valor!","err");return;}
-  const cv=document.getElementById("h-card").value;
-  const note=(document.getElementById("h-note")?.value||"").trim();
-  const hSplit=document.getElementById("h-split");
-  const hSplitRatio=hSplit?.checked?parseInt(document.getElementById("h-split-pct")?.value||"50"):null;
-  const data={date:document.getElementById("h-date").value,desc,amount,cat:document.getElementById("h-cat").value,cardId:cv||null,note:note||"",splitRatio:hSplitRatio};
-  dEl.value="";aEl.value="";
-  const hn=document.getElementById("h-note");if(hn)hn.value="";
-  window.fbAdd("expenses",data).then(()=>{
-    toast("✅ Gasto registrado!");
-    setTimeout(()=>_checkCatLimitsAlert(data.date?.slice(0,7)||curM()),800);
-  }).catch(e=>toast("Erro: "+e.message,"err"));
+  _saveExpGeneric("h-");
 }
 
 // ── CARDS TAB ─────────────────────────────────────────────────────────
@@ -2160,27 +2189,7 @@ function saveEditInst(){
 // ── EXPENSE FORM ──────────────────────────────────────────────────────
 function populateExpCard(){document.getElementById("exp-card").innerHTML=`<option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}`;}
 function saveExpense(){
-  const dEl=document.getElementById("exp-desc"),aEl=document.getElementById("exp-amount");
-  const desc=dEl.value.trim(),amount=parseFloat(aEl.value);
-  let ok=true;
-  if(!desc){dEl.classList.add("error");setTimeout(()=>dEl.classList.remove("error"),600);ok=false;}
-  if(!amount||amount<=0){aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);ok=false;}
-  if(!ok){toast("Preencha descrição e valor!","err");return;}
-  const cv=document.getElementById("exp-card").value;
-  const note=document.getElementById("exp-note").value.trim();
-  const recurring=document.getElementById("exp-recurring")?.checked||false;
-  const splitEl=document.getElementById("exp-split");
-  const splitRatio=splitEl?.checked ? parseInt(document.getElementById("exp-split-pct")?.value||"50") : null;
-  const data={date:document.getElementById("exp-date").value,desc,amount,cat:document.getElementById("exp-cat").value,cardId:cv||null,note:note||"",recurring,splitRatio};
-  window.fbAdd("expenses",data).then(()=>{
-    toast(recurring?"🔁 Gasto recorrente salvo!":splitRatio!=null?"🤝 Gasto dividido salvo!":"✅ Gasto registrado!");
-    setTimeout(()=>_checkCatLimitsAlert(data.date?.slice(0,7)||curM()),800);
-    closeModal("modal-expense");
-    document.getElementById("exp-note").value="";
-    const rc=document.getElementById("exp-recurring");if(rc)rc.checked=false;
-    if(splitEl)splitEl.checked=false;
-    const sw=document.getElementById("exp-split-wrap");if(sw)sw.style.display="none";
-  }).catch(e=>toast("Erro: "+e.message,"err"));
+  _saveExpGeneric("exp-", { closeModal: "modal-expense" });
 }
 
 // ── GOALS FORMS ───────────────────────────────────────────────────────
