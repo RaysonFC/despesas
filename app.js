@@ -79,7 +79,7 @@ const BRANDS={
 };
 const CATS={"Alimentação":"🍔","Transporte":"🚗","Saúde":"💊","Lazer":"🎮","Casa":"🏠","Educação":"📚","Roupas":"👕","Outros":"💸"};
 const GOAL_EMOJIS=["🏖️","✈️","💻","📱","🚗","🏠","💍","🎓","🏋️","🎮","📷","🎸","🌍","👶","💰","🎯"];
-const TAB_LABELS={home:"Início",cards:"Cartões",all:"Todos os Gastos",goals:"Metas",health:"Saúde Financeira",report:"Relatório"};
+const TAB_LABELS={home:"Início",cards:"Cartões",all:"Todos os Gastos",goals:"Metas",health:"Saúde Financeira",report:"Relatório",calendar:"Calendário"};
 
 // ── STATE (em memória — Firebase é a fonte da verdade) ─────────────────
 let S={
@@ -191,6 +191,217 @@ function applyTheme(){
   const sd=document.getElementById("sync-dot");if(sd)sd.style.background=t.accent;
   // Topbar border
   const tp=document.getElementById("topbar");if(tp)tp.style.borderBottomColor=t.border+"44";
+}
+
+
+// ── CALENDÁRIO DE CONTAS ──────────────────────────────────────────────
+let _calYear  = new Date().getFullYear();
+let _calMonth = new Date().getMonth(); // 0-based
+
+function renderCalendar(){
+  const t   = T();
+  const now = new Date();
+  const y   = _calYear;
+  const m   = _calMonth;
+
+  // Primeiro e último dia do mês
+  const firstDay = new Date(y, m, 1);
+  const lastDay  = new Date(y, m+1, 0);
+  const daysInMonth = lastDay.getDate();
+
+  // Dia da semana do primeiro (0=dom → ajusta para seg=0)
+  let startDow = firstDay.getDay(); // 0=dom
+  const startOffset = startDow; // manter domingo=0
+
+  const monthStr = `${y}-${String(m+1).padStart(2,"0")}`;
+  const todayStr = now.toISOString().split("T")[0];
+
+  // ── Coleta eventos por dia ────────────────────────────────────────
+  // Mapa: { "YYYY-MM-DD": [{ type, label, color, id, amount }] }
+  const events = {};
+
+  const addEvent = (dateStr, ev) => {
+    if(!events[dateStr]) events[dateStr] = [];
+    events[dateStr].push(ev);
+  };
+
+  // Parcelas com dueDay no mês
+  S.installments.forEach(i => {
+    if(i.paidInstallments >= i.installments) return;
+    if(i.startMonth && i.startMonth > monthStr) return;
+    if(!i.dueDay) return;
+    const day = Math.min(i.dueDay, daysInMonth);
+    const ds  = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    addEvent(ds, { type:"inst", label:i.desc, color:t.warn, amount:i.installmentValue, id:i.id });
+  });
+
+  // Gastos recorrentes — marca no dia de hoje ou dia original
+  S.expenses.filter(e => e.recurring && e._fromRecurring == null).forEach(e => {
+    const origDay = e.date ? parseInt(e.date.split("-")[2]) : now.getDate();
+    const day = Math.min(origDay, daysInMonth);
+    const ds  = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    addEvent(ds, { type:"recurring", label:e.desc, color:t.blue, amount:e.amount, id:e.id });
+  });
+
+  // Gastos avulsos do mês
+  S.expenses.filter(e => e.date?.startsWith(monthStr) && !e.recurring).forEach(e => {
+    addEvent(e.date, { type:"expense", label:e.desc, color:t.danger, amount:e.amount, id:e.id });
+  });
+
+  // ── Constrói o grid ───────────────────────────────────────────────
+  const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const monthName = new Date(y, m).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+
+  // Total comprometido no mês
+  const totalInst = S.installments
+    .filter(i => i.paidInstallments < i.installments && (!i.startMonth || i.startMonth <= monthStr) && i.dueDay)
+    .reduce((s,i) => s+i.installmentValue, 0);
+  const totalExp = S.expenses
+    .filter(e => e.date?.startsWith(monthStr))
+    .reduce((s,e) => s+e.amount, 0);
+
+  let html = `
+    <!-- Cabeçalho do calendário -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="_calNav(-1)" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:10px;padding:8px 13px;color:${t.text};font-size:16px;cursor:pointer">‹</button>
+        <h2 style="font-size:16px;font-weight:800;text-transform:capitalize;min-width:160px;text-align:center">${monthName}</h2>
+        <button onclick="_calNav(1)"  style="background:${t.cardLight};border:1px solid ${t.border};border-radius:10px;padding:8px 13px;color:${t.text};font-size:16px;cursor:pointer">›</button>
+      </div>
+      <button onclick="_calGoToday()" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:8px 14px;color:${t.accent};font-size:12px;font-weight:700;cursor:pointer">Hoje</button>
+    </div>
+
+    <!-- Resumo do mês -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
+      <div class="crd" style="padding:12px 14px">
+        <p style="font-size:10px;color:${t.muted};margin-bottom:4px">Parcelas</p>
+        <p style="font-size:16px;font-weight:800;color:${t.warn}">${fmt(totalInst)}</p>
+      </div>
+      <div class="crd" style="padding:12px 14px">
+        <p style="font-size:10px;color:${t.muted};margin-bottom:4px">Gastos</p>
+        <p style="font-size:16px;font-weight:800;color:${t.danger}">${fmt(totalExp)}</p>
+      </div>
+      <div class="crd" style="padding:12px 14px">
+        <p style="font-size:10px;color:${t.muted};margin-bottom:4px">Eventos</p>
+        <p style="font-size:16px;font-weight:800;color:${t.blue}">${Object.values(events).reduce((a,v)=>a+v.length,0)}</p>
+      </div>
+    </div>
+
+    <!-- Legenda -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:${t.muted}">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.warn};margin-right:4px"></span>Parcela</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.blue};margin-right:4px"></span>Recorrente</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.danger};margin-right:4px"></span>Gasto avulso</span>
+    </div>
+
+    <!-- Grid do calendário -->
+    <div class="crd" style="padding:14px;overflow:hidden">
+      <!-- Dias da semana -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+        ${WEEKDAYS.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:${t.muted};padding:4px 0">${d}</div>`).join("")}
+      </div>
+      <!-- Células dos dias -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px" id="cal-grid">`;
+
+  // Células vazias antes do dia 1
+  for(let i=0;i<startOffset;i++){
+    html+=`<div style="min-height:54px"></div>`;
+  }
+
+  // Dias do mês
+  for(let d=1;d<=daysInMonth;d++){
+    const ds      = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const isToday = ds === todayStr;
+    const dayEvs  = events[ds] || [];
+    const hasEvs  = dayEvs.length > 0;
+
+    // Cores dos pontos (máx 3 pontos)
+    const dots = [...new Set(dayEvs.map(e=>e.color))].slice(0,3);
+
+    html+=`<div onclick="_calDayClick('${ds}')"
+      style="min-height:54px;border-radius:10px;padding:5px 4px;cursor:${hasEvs?"pointer":"default"};
+             background:${isToday?t.accent+"22":hasEvs?t.cardLight:"transparent"};
+             border:1px solid ${isToday?t.accent+"66":hasEvs?t.border+"88":"transparent"};
+             transition:background .12s;text-align:center"
+      ${hasEvs?`onmouseover="this.style.background='${t.cardLight}'" onmouseout="this.style.background='${isToday?t.accent+"22":t.cardLight}'"`:""}>
+      <p style="font-size:12px;font-weight:${isToday?"800":"500"};color:${isToday?t.accent:t.text};margin-bottom:4px">${d}</p>
+      <div style="display:flex;justify-content:center;gap:3px;flex-wrap:wrap">
+        ${dots.map(c=>`<span style="display:block;width:6px;height:6px;border-radius:50%;background:${c}"></span>`).join("")}
+      </div>
+      ${dayEvs.length>3?`<p style="font-size:9px;color:${t.muted};margin-top:2px">+${dayEvs.length-3}</p>`:""}
+    </div>`;
+  }
+
+  html += `</div></div>`; // fecha grid e crd
+
+  document.getElementById("tab-calendar").innerHTML = html;
+}
+
+function _calNav(delta){
+  _calMonth += delta;
+  if(_calMonth > 11){ _calMonth = 0; _calYear++; }
+  if(_calMonth < 0) { _calMonth = 11; _calYear--; }
+  renderCalendar();
+}
+
+function _calGoToday(){
+  _calYear  = new Date().getFullYear();
+  _calMonth = new Date().getMonth();
+  renderCalendar();
+}
+
+function _calDayClick(dateStr){
+  const t    = T();
+  const evs  = [];
+  const [y,m,d] = dateStr.split("-");
+  const monthStr = `${y}-${m}`;
+  const dDay = parseInt(d);
+  const label = new Date(dateStr+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
+
+  // Parcelas do dia
+  S.installments
+    .filter(i => i.paidInstallments < i.installments
+      && (!i.startMonth || i.startMonth <= monthStr)
+      && i.dueDay && Math.min(i.dueDay, new Date(+y,+m,0).getDate()) === dDay)
+    .forEach(i => evs.push({ emoji:"📅", title:i.desc, sub:`${fmt(i.installmentValue)}/mês · ${i.paidInstallments}/${i.installments} pagas`, color:t.warn }));
+
+  // Recorrentes
+  S.expenses
+    .filter(e => e.recurring && !e._fromRecurring
+      && Math.min(parseInt(e.date?.split("-")[2]||d), new Date(+y,+m,0).getDate()) === dDay)
+    .forEach(e => evs.push({ emoji:"🔁", title:e.desc, sub:`${fmt(e.amount)} · Recorrente`, color:t.blue }));
+
+  // Gastos avulsos do dia
+  S.expenses
+    .filter(e => e.date === dateStr && !e.recurring)
+    .forEach(e => evs.push({ emoji:CATS[e.cat]||"💸", title:e.desc, sub:`${fmt(e.amount)} · ${e.cat}`, color:t.danger }));
+
+  if(!evs.length) return;
+
+  const items = evs.map(ev=>`
+    <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid ${t.border}44">
+      <div style="width:36px;height:36px;border-radius:10px;background:${ev.color}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${ev.emoji}</div>
+      <div>
+        <p style="font-size:13px;font-weight:700;color:${ev.color}">${ev.title}</p>
+        <p style="font-size:11px;color:${t.muted};margin-top:2px">${ev.sub}</p>
+      </div>
+    </div>`).join("");
+
+  confirm2({
+    emoji:"📅",
+    title:label,
+    msg:"",
+    okLabel:"Fechar",
+    okColor:t.accent,
+    ok:()=>{},
+  });
+  setTimeout(()=>{
+    const msgEl = document.getElementById("confirm-msg");
+    if(msgEl) msgEl.innerHTML = `<div style="text-align:left;margin-top:8px">${items}</div>`;
+    // Esconde o botão cancelar
+    const cancel = document.getElementById("confirm-cancel-btn");
+    if(cancel) cancel.style.display="none";
+  },10);
 }
 
 // ── RELATÓRIO MENSAL ──────────────────────────────────────────────────
@@ -590,7 +801,7 @@ function renderStatus(){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function setTab(tab){
-  ["home","cards","all","goals","health","report"].forEach(id=>{
+  ["home","cards","all","goals","health","report","calendar"].forEach(id=>{
     document.getElementById("tab-"+id).style.display=id===tab?"block":"none";
     document.getElementById("side-"+id)?.classList.toggle("active",id===tab);
     document.getElementById("nav-"+id)?.classList.toggle("active",id===tab);
@@ -605,6 +816,7 @@ function renderTab(t){
   if(t==="home")renderHome();else if(t==="cards")renderCards();
   else if(t==="all")renderAllExp();else if(t==="goals")renderGoals();else if(t==="health")renderHealth();
   else if(t==="report")renderReport();
+  else if(t==="calendar")renderCalendar();
 }
 
 // ── FILTER BAR ────────────────────────────────────────────────────────
