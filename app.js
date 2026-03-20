@@ -2152,19 +2152,36 @@ function saveSalary(){
 // ── CARD FORMS ────────────────────────────────────────────────────────
 let editCardId=null,editInstId=null,editInstCard=null;
 function openAddCard(){S.selectedBrand="Visa";renderBrandChips();renderCardPreview();["card-name","card-limit","card-closing","card-due"].forEach(id=>document.getElementById(id).value="");openModal("modal-card");}
-function renderBrandChips(){document.getElementById("brand-chips").innerHTML=Object.keys(BRANDS).map(b=>`<button class="chip ${b===S.selectedBrand?"active":""}" onclick="selectBrand('${b}')">${b}</button>`).join("");}
-function selectBrand(b){S.selectedBrand=b;renderBrandChips();renderCardPreview();}
-function renderCardPreview(){document.getElementById("card-preview").innerHTML=cardHTML({name:document.getElementById("card-name")?.value||"Prévia",brand:S.selectedBrand},false);}
+// ── BRAND CHIPS — FUNÇÃO GENÉRICA ────────────────────────────────────
+// ctx: "add" | "edit"  — define prefixo dos IDs e qual state usar
+function renderBrandChips(ctx="add"){
+  const pfx      = ctx==="edit" ? "edit-" : "";
+  const selected = ctx==="edit" ? S.selectedEditBrand : S.selectedBrand;
+  document.getElementById(pfx+"brand-chips").innerHTML =
+    Object.keys(BRANDS).map(b=>
+      `<button class="chip ${b===selected?"active":""}"
+        onclick="selectBrand('${b}','${ctx}')">${b}</button>`
+    ).join("");
+}
+function selectBrand(b, ctx="add"){
+  if(ctx==="edit") S.selectedEditBrand=b; else S.selectedBrand=b;
+  renderBrandChips(ctx);
+  renderCardPreview(ctx);
+}
+function renderCardPreview(ctx="add"){
+  const pfx      = ctx==="edit" ? "edit-" : "";
+  const selected = ctx==="edit" ? S.selectedEditBrand : S.selectedBrand;
+  document.getElementById(pfx+"card-preview").innerHTML =
+    cardHTML({name:document.getElementById(pfx+"card-name")?.value||"Prévia", brand:selected}, false);
+}
 function saveCard(){
   const el=document.getElementById("card-name"),name=el.value.trim();
   if(!name){el.classList.add("error");setTimeout(()=>el.classList.remove("error"),600);toast("Informe o nome do cartão!","err");return;}
   const data={name,brand:S.selectedBrand,limit:parseFloat(document.getElementById("card-limit").value)||0,closing:parseInt(document.getElementById("card-closing").value)||1,due:parseInt(document.getElementById("card-due").value)||10};
   window.fbAdd("cards",data).then(()=>{toast("💳 Cartão adicionado!");closeModal("modal-card");}).catch(e=>toast("Erro: "+e.message,"err"));
 }
-function openEditCard(id){const c=S.cards.find(x=>x.id===id);if(!c)return;editCardId=id;S.selectedEditBrand=c.brand;document.getElementById("edit-card-name").value=c.name;document.getElementById("edit-card-limit").value=c.limit;document.getElementById("edit-card-closing").value=c.closing;document.getElementById("edit-card-due").value=c.due;renderEditBrandChips();renderEditCardPreview();openModal("modal-edit-card");}
-function renderEditBrandChips(){document.getElementById("edit-brand-chips").innerHTML=Object.keys(BRANDS).map(b=>`<button class="chip ${b===S.selectedEditBrand?"active":""}" onclick="selectEditBrand('${b}')">${b}</button>`).join("");}
-function selectEditBrand(b){S.selectedEditBrand=b;renderEditBrandChips();renderEditCardPreview();}
-function renderEditCardPreview(){document.getElementById("edit-card-preview").innerHTML=cardHTML({name:document.getElementById("edit-card-name")?.value||"Prévia",brand:S.selectedEditBrand},false);}
+function openEditCard(id){const c=S.cards.find(x=>x.id===id);if(!c)return;editCardId=id;S.selectedEditBrand=c.brand;document.getElementById("edit-card-name").value=c.name;document.getElementById("edit-card-limit").value=c.limit;document.getElementById("edit-card-closing").value=c.closing;document.getElementById("edit-card-due").value=c.due;renderBrandChips('edit');renderCardPreview('edit');openModal("modal-edit-card");}
+// renderBrandChips('edit'), selectBrand(b,'edit') e renderCardPreview('edit') cobrem o modal de edição
 function saveEditCard(){
   const c=S.cards.find(x=>x.id===editCardId);if(!c)return;
   const data={name:document.getElementById("edit-card-name").value.trim()||c.name,brand:S.selectedEditBrand,limit:parseFloat(document.getElementById("edit-card-limit").value)||c.limit,closing:parseInt(document.getElementById("edit-card-closing").value)||c.closing,due:parseInt(document.getElementById("edit-card-due").value)||c.due};
