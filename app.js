@@ -204,58 +204,107 @@ function renderCalendar(){
   const y   = _calYear;
   const m   = _calMonth;
 
-  // Primeiro e último dia do mês
-  const firstDay = new Date(y, m, 1);
-  const lastDay  = new Date(y, m+1, 0);
+  const firstDay    = new Date(y, m, 1);
+  const lastDay     = new Date(y, m+1, 0);
   const daysInMonth = lastDay.getDate();
-
-  // Dia da semana do primeiro (0=dom → ajusta para seg=0)
-  let startDow = firstDay.getDay(); // 0=dom
-  const startOffset = startDow; // manter domingo=0
+  const startOffset = firstDay.getDay(); // 0=dom
 
   const monthStr = `${y}-${String(m+1).padStart(2,"0")}`;
   const todayStr = now.toISOString().split("T")[0];
 
   // ── Coleta eventos por dia ────────────────────────────────────────
-  // Mapa: { "YYYY-MM-DD": [{ type, label, color, id, amount }] }
   const events = {};
+  const addEvent = (ds, ev) => { if(!events[ds])events[ds]=[]; events[ds].push(ev); };
 
-  const addEvent = (dateStr, ev) => {
-    if(!events[dateStr]) events[dateStr] = [];
-    events[dateStr].push(ev);
-  };
-
-  // Parcelas com dueDay no mês
+  // ── PARCELAS ──────────────────────────────────────────────────────
+  // Mostra em TODOS os meses em que a parcela está ativa
+  // (startMonth <= monthStr E não quitada OU ainda futura)
   S.installments.forEach(i => {
-    if(i.paidInstallments >= i.installments) return;
-    if(i.startMonth && i.startMonth > monthStr) return;
-    if(!i.dueDay) return;
-    const day = Math.min(i.dueDay, daysInMonth);
-    const ds  = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-    addEvent(ds, { type:"inst", label:i.desc, color:t.warn, amount:i.installmentValue, id:i.id });
+    // Calcula o mês de início e fim da dívida
+    const start = i.startMonth || "0000-00";
+    const totalParcelas = i.installments || 1;
+
+    // Calcula o mês final: startMonth + totalParcelas meses
+    const [sy, smo] = start.split("-").map(Number);
+    const endDate   = new Date(sy, smo - 1 + totalParcelas, 1);
+    const endMonth  = `${endDate.getFullYear()}-${String(endDate.getMonth()+1).padStart(2,"0")}`;
+
+    // Só aparece se o mês visualizado está dentro do período da dívida
+    if(start > monthStr) return;        // ainda não começou
+    if(monthStr >= endMonth) return;    // já terminou (quitada no tempo)
+
+    // Parcela já quitada manualmente antes do fim?
+    const isQuitada = i.paidInstallments >= i.installments;
+
+    // Qual parcela é essa no mês visualizado?
+    const [iy, imo] = start.split("-").map(Number);
+    const parcNum   = (y - iy) * 12 + (m+1 - imo) + 1; // 1-based
+
+    // Dia de vencimento — se não tiver dueDay, usa dia 1
+    const dueDay = i.dueDay || 1;
+    const day    = Math.min(dueDay, daysInMonth);
+    const ds     = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+
+    addEvent(ds, {
+      type:    "inst",
+      label:   i.desc,
+      color:   isQuitada ? t.muted : (parcNum > i.paidInstallments ? t.warn : t.accent),
+      amount:  i.installmentValue,
+      id:      i.id,
+      parcNum,
+      total:   i.installments,
+      paid:    i.paidInstallments,
+      quitada: isQuitada,
+      pago:    parcNum <= i.paidInstallments,
+    });
   });
 
-  // Gastos recorrentes — marca no dia de hoje ou dia original
-  S.expenses.filter(e => e.recurring && e._fromRecurring == null).forEach(e => {
-    const origDay = e.date ? parseInt(e.date.split("-")[2]) : now.getDate();
-    const day = Math.min(origDay, daysInMonth);
-    const ds  = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-    addEvent(ds, { type:"recurring", label:e.desc, color:t.blue, amount:e.amount, id:e.id });
+  // ── GASTOS RECORRENTES ────────────────────────────────────────────
+  // Projeta em todos os meses (passados e futuros) pelo dia original
+  const recurringBase = S.expenses.filter(e =>
+    e.recurring &&
+    !e._fromRecurring &&  // só o gasto original, não os relançamentos
+    e.date               // precisa ter data
+  );
+  recurringBase.forEach(e => {
+    const origDay = parseInt(e.date.split("-")[2]) || 1;
+    const day     = Math.min(origDay, daysInMonth);
+    const ds      = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    // Verifica se já foi lançado nesse mês (existe um _fromRecurring)
+    const jaLancado = S.expenses.some(x =>
+      x._fromRecurring === e.id &&
+      x.date?.startsWith(monthStr)
+    );
+    addEvent(ds, {
+      type:      "recurring",
+      label:     e.desc,
+      color:     jaLancado ? t.accent : t.blue,
+      amount:    e.amount,
+      id:        e.id,
+      jaLancado,
+    });
   });
 
-  // Gastos avulsos do mês
-  S.expenses.filter(e => e.date?.startsWith(monthStr) && !e.recurring).forEach(e => {
-    addEvent(e.date, { type:"expense", label:e.desc, color:t.danger, amount:e.amount, id:e.id });
-  });
+  // ── GASTOS AVULSOS do mês ─────────────────────────────────────────
+  S.expenses
+    .filter(e => e.date?.startsWith(monthStr) && !e.recurring && !e._fromRecurring)
+    .forEach(e => addEvent(e.date, {
+      type:"expense", label:e.desc,
+      color:t.danger, amount:e.amount, id:e.id, cat:e.cat,
+    }));
 
-  // ── Constrói o grid ───────────────────────────────────────────────
+  // ── Totais do mês ─────────────────────────────────────────────────
   const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   const monthName = new Date(y, m).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
 
-  // Total comprometido no mês
-  const totalInst = S.installments
-    .filter(i => i.paidInstallments < i.installments && (!i.startMonth || i.startMonth <= monthStr) && i.dueDay)
-    .reduce((s,i) => s+i.installmentValue, 0);
+  const totalInst = S.installments.filter(i => {
+    const start = i.startMonth || "0000-00";
+    const [sy,smo] = start.split("-").map(Number);
+    const endDate  = new Date(sy, smo-1+(i.installments||1), 1);
+    const endMonth = `${endDate.getFullYear()}-${String(endDate.getMonth()+1).padStart(2,"0")}`;
+    return start <= monthStr && monthStr < endMonth;
+  }).reduce((s,i) => s+i.installmentValue, 0);
+
   const totalExp = S.expenses
     .filter(e => e.date?.startsWith(monthStr))
     .reduce((s,e) => s+e.amount, 0);
@@ -288,8 +337,9 @@ function renderCalendar(){
     </div>
 
     <!-- Legenda -->
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:${t.muted}">
-      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.warn};margin-right:4px"></span>Parcela</span>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:${t.muted}">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.warn};margin-right:4px"></span>Parcela pendente</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.accent};margin-right:4px"></span>Parcela paga</span>
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.blue};margin-right:4px"></span>Recorrente</span>
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.danger};margin-right:4px"></span>Gasto avulso</span>
     </div>
@@ -334,6 +384,7 @@ function renderCalendar(){
 
   html += `</div></div>`; // fecha grid e crd
 
+  window._calEvents = events; // cache para _calDayClick
   document.getElementById("tab-calendar").innerHTML = html;
 }
 
@@ -351,41 +402,38 @@ function _calGoToday(){
 }
 
 function _calDayClick(dateStr){
-  const t    = T();
-  const evs  = [];
-  const [y,m,d] = dateStr.split("-");
-  const monthStr = `${y}-${m}`;
-  const dDay = parseInt(d);
+  const t     = T();
+  const dayEvs = (window._calEvents||{})[dateStr] || [];
+  if(!dayEvs.length) return;
+
   const label = new Date(dateStr+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
 
-  // Parcelas do dia
-  S.installments
-    .filter(i => i.paidInstallments < i.installments
-      && (!i.startMonth || i.startMonth <= monthStr)
-      && i.dueDay && Math.min(i.dueDay, new Date(+y,+m,0).getDate()) === dDay)
-    .forEach(i => evs.push({ emoji:"📅", title:i.desc, sub:`${fmt(i.installmentValue)}/mês · ${i.paidInstallments}/${i.installments} pagas`, color:t.warn }));
-
-  // Recorrentes
-  S.expenses
-    .filter(e => e.recurring && !e._fromRecurring
-      && Math.min(parseInt(e.date?.split("-")[2]||d), new Date(+y,+m,0).getDate()) === dDay)
-    .forEach(e => evs.push({ emoji:"🔁", title:e.desc, sub:`${fmt(e.amount)} · Recorrente`, color:t.blue }));
-
-  // Gastos avulsos do dia
-  S.expenses
-    .filter(e => e.date === dateStr && !e.recurring)
-    .forEach(e => evs.push({ emoji:CATS[e.cat]||"💸", title:e.desc, sub:`${fmt(e.amount)} · ${e.cat}`, color:t.danger }));
-
-  if(!evs.length) return;
-
-  const items = evs.map(ev=>`
-    <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid ${t.border}44">
-      <div style="width:36px;height:36px;border-radius:10px;background:${ev.color}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${ev.emoji}</div>
-      <div>
-        <p style="font-size:13px;font-weight:700;color:${ev.color}">${ev.title}</p>
-        <p style="font-size:11px;color:${t.muted};margin-top:2px">${ev.sub}</p>
-      </div>
-    </div>`).join("");
+  const items = dayEvs.map(ev => {
+    let emoji = "💸", sub = "";
+    if(ev.type === "inst"){
+      emoji = ev.quitada ? "✅" : ev.pago ? "✔️" : "📅";
+      const status = ev.quitada
+        ? "Dívida quitada"
+        : ev.pago
+          ? `Parcela ${ev.parcNum}/${ev.total} — paga`
+          : `Parcela ${ev.parcNum}/${ev.total} · ${ev.paid} paga${ev.paid!==1?"s":""}`;
+      sub = `${fmt(ev.amount)}/mês · ${status}`;
+    } else if(ev.type === "recurring"){
+      emoji = "🔁";
+      sub   = `${fmt(ev.amount)} · Recorrente${ev.jaLancado?" · ✓ lançado este mês":""}`;
+    } else {
+      emoji = CATS[ev.cat] || "💸";
+      sub   = `${fmt(ev.amount)} · ${ev.cat||"Gasto"}`;
+    }
+    return `
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid ${t.border}44">
+        <div style="width:36px;height:36px;border-radius:10px;background:${ev.color}22;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${emoji}</div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:13px;font-weight:700;color:${ev.color};margin-bottom:3px">${ev.label}</p>
+          <p style="font-size:11px;color:${t.muted};line-height:1.5">${sub}</p>
+        </div>
+      </div>`;
+  }).join("");
 
   confirm2({
     emoji:"📅",
@@ -398,10 +446,9 @@ function _calDayClick(dateStr){
   setTimeout(()=>{
     const msgEl = document.getElementById("confirm-msg");
     if(msgEl) msgEl.innerHTML = `<div style="text-align:left;margin-top:8px">${items}</div>`;
-    // Esconde o botão cancelar
     const cancel = document.getElementById("confirm-cancel-btn");
-    if(cancel) cancel.style.display="none";
-  },10);
+    if(cancel) cancel.style.display = "none";
+  }, 10);
 }
 
 // ── RELATÓRIO MENSAL ──────────────────────────────────────────────────
