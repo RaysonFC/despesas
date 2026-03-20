@@ -2814,6 +2814,106 @@ function _hashPin(pin){
   return (h >>> 0).toString(16);
 }
 
+
+// ── BIOMETRIA (WebAuthn) ──────────────────────────────────────────────
+function _bioKey(uid){ return "bio_cred_" + (uid || window._currentUser?.uid || "user"); }
+function hasBioSet(){ return !!localStorage.getItem(_bioKey()); }
+function removeBioSet(){ localStorage.removeItem(_bioKey()); }
+
+function _bioSupported(){
+  return !!(window.PublicKeyCredential && navigator.credentials?.create);
+}
+
+// Converte base64url ↔ ArrayBuffer
+function _b64ToAb(b64){
+  const str = atob(b64.replace(/-/g,"+").replace(/_/g,"/"));
+  const buf = new Uint8Array(str.length);
+  for(let i=0;i<str.length;i++) buf[i]=str.charCodeAt(i);
+  return buf.buffer;
+}
+function _abToB64(buf){
+  const bytes = new Uint8Array(buf);
+  let str="";
+  bytes.forEach(b=>str+=String.fromCharCode(b));
+  return btoa(str).replace(/\+/g,"-").replace(/\//g,"_").replace(/=/g,"");
+}
+
+// Registra biometria no dispositivo
+async function registerBiometric(){
+  if(!_bioSupported()){
+    toast("Biometria não suportada neste dispositivo.","err");
+    return false;
+  }
+  const uid  = window._currentUser?.uid  || "user";
+  const name = window._currentUser?.name || "Usuário";
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp:   { name: "Meu Orçamento", id: location.hostname },
+        user: {
+          id:          new TextEncoder().encode(uid),
+          name:        name,
+          displayName: name,
+        },
+        pubKeyCredParams: [
+          { alg: -7,   type: "public-key" }, // ES256
+          { alg: -257, type: "public-key" }, // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform", // só biometria nativa
+          userVerification: "required",
+          residentKey: "preferred",
+        },
+        timeout: 60000,
+        attestation: "none",
+      }
+    });
+    // Salva o credentialId para usar no unlock
+    const credId = _abToB64(cred.rawId);
+    localStorage.setItem(_bioKey(), credId);
+    return true;
+  } catch(e){
+    console.warn("WebAuthn register error:", e);
+    if(e.name === "NotAllowedError") toast("Cadastro de biometria cancelado.","info");
+    else toast("Erro ao cadastrar biometria: "+e.message,"err");
+    return false;
+  }
+}
+
+// Verifica biometria para desbloquear
+async function unlockWithBiometric(){
+  if(!_bioSupported() || !hasBioSet()) return false;
+  const credId = localStorage.getItem(_bioKey());
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{
+          id:   _b64ToAb(credId),
+          type: "public-key",
+          transports: ["internal"],
+        }],
+        userVerification: "required",
+        timeout: 60000,
+        rpId: location.hostname,
+      }
+    });
+    // Se chegou aqui, biometria aprovada
+    hidePinOverlay();
+    toast("✅ Desbloqueado!");
+    return true;
+  } catch(e){
+    console.warn("WebAuthn get error:", e);
+    if(e.name !== "NotAllowedError"){
+      toast("Biometria falhou. Use o PIN.","err");
+    }
+    return false;
+  }
+}
+
 function getPinHash(){ return localStorage.getItem(_pinKey()); }
 function setPinHash(pin){ localStorage.setItem(_pinKey(), _hashPin(pin)); }
 function removePinHash(){ localStorage.removeItem(_pinKey()); }
@@ -2834,7 +2934,26 @@ function showPinOverlay(){
   _pinAttempts = 0;
   _updatePinDots("pin-dot", _pinBuffer);
   _clearPinError();
+
+  // Mostra / esconde botão de biometria
+  const bioBtn = document.getElementById("pin-bio-btn");
+  if(bioBtn){
+    if(hasBioSet() && _bioSupported()){
+      bioBtn.style.display = "flex";
+      bioBtn.style.background  = t.cardLight;
+      bioBtn.style.borderColor = t.border;
+      bioBtn.style.color       = t.text;
+    } else {
+      bioBtn.style.display = "none";
+    }
+  }
+
   ov.classList.add("show");
+
+  // Tenta biometria automaticamente após 300ms
+  if(hasBioSet() && _bioSupported()){
+    setTimeout(()=>{ if(ov.classList.contains("show")) unlockWithBiometric(); }, 300);
+  }
 }
 
 function hidePinOverlay(){
@@ -2906,6 +3025,7 @@ function openPinSetup(){
   document.getElementById("pin-setup-error").style.display = "none";
   _updatePinDots("pin-setup-dot", "");
   openModal("modal-pin-setup");
+  setTimeout(_renderBioToggleBtn, 50);
 }
 
 function pinSetupKey(v){
@@ -2925,6 +3045,22 @@ function pinSetupKey(v){
         setPinHash(_pinSetupFirst);
         closeModal("modal-pin-setup");
         toast("🔒 PIN configurado com sucesso!");
+        // Oferece cadastrar biometria logo após configurar PIN
+        if(_bioSupported()){
+          setTimeout(()=>{
+            confirm2({
+              emoji:"🔐",
+              title:"Ativar biometria?",
+              msg:"Deseja usar digital ou Face ID para desbloquear o app?",
+              okLabel:"Ativar",
+              okColor:T().accent,
+              ok: async ()=>{
+                const ok = await registerBiometric();
+                if(ok) toast("🔐 Biometria ativada!");
+              }
+            });
+          }, 400);
+        }
       } else {
         _pinSetupBuffer = "";
         _pinSetupFirst  = "";
@@ -2945,7 +3081,7 @@ function disablePinLock(){
     msg:"O app não pedirá mais PIN ao retornar do background.",
     okLabel:"Desativar",
     okColor:T().warn,
-    ok:()=>{ removePinHash(); closeModal("modal-pin-setup"); toast("Bloqueio por PIN desativado","info"); }
+    ok:()=>{ removePinHash(); removeBioSet(); closeModal("modal-pin-setup"); toast("Bloqueio desativado","info"); }
   });
 }
 
@@ -2966,6 +3102,36 @@ document.addEventListener("visibilitychange",()=>{
 });
 
 // Expõe para a sidebar (botão de configurar PIN)
+
+// Alterna biometria no modal de setup
+function setupBiometricToggle(){
+  if(!_bioSupported()){
+    toast("Biometria não suportada neste dispositivo.","err");
+    return;
+  }
+  if(hasBioSet()){
+    confirm2({
+      emoji:"🔐",
+      title:"Remover biometria?",
+      msg:"O app voltará a pedir somente o PIN ao desbloquear.",
+      okLabel:"Remover",
+      okColor:T().warn,
+      ok:()=>{ removeBioSet(); _renderBioToggleBtn(); toast("Biometria removida","info"); }
+    });
+  } else {
+    registerBiometric().then(ok=>{ if(ok){ _renderBioToggleBtn(); toast("🔐 Biometria ativada!"); }});
+  }
+}
+
+function _renderBioToggleBtn(){
+  const btn = document.getElementById("bio-toggle-btn");
+  if(!btn) return;
+  if(!_bioSupported()){ btn.style.display="none"; return; }
+  btn.style.display = "block";
+  btn.textContent   = hasBioSet() ? "🔐 Biometria ativa — toque para remover" : "🔐 Ativar biometria (digital / Face ID)";
+  btn.style.color   = hasBioSet() ? T().accent : T().muted;
+}
+
 window.openPinSetup = openPinSetup;
 
 // Checa backup automático ao entrar no app

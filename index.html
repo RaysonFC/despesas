@@ -612,6 +612,16 @@
       <button onclick="pinKey('del')" class="pin-key" style="font-size:18px">⌫</button>
     </div>
 
+    <!-- Botão biometria -->
+    <button id="pin-bio-btn" onclick="unlockWithBiometric()"
+      style="display:none;align-items:center;justify-content:center;gap:10px;
+             width:100%;max-width:240px;margin:0 auto 18px;
+             padding:14px;border-radius:16px;border:1px solid;
+             font-size:15px;font-weight:700;cursor:pointer;">
+      <span style="font-size:26px">🔐</span>
+      <span>Usar digital / Face ID</span>
+    </button>
+
     <p id="pin-error" style="display:none;color:#ff4d6d;font-size:13px;background:#ff4d6d18;padding:10px;border-radius:12px;margin-bottom:16px"></p>
     <p id="pin-attempts" style="font-size:11px;color:#5a5a72"></p>
   </div>
@@ -646,7 +656,11 @@
       <button onclick="pinSetupKey('del')" class="pin-key" style="font-size:18px">⌫</button>
     </div>
     <p id="pin-setup-error" style="display:none;color:#ff4d6d;font-size:12px;margin-bottom:8px"></p>
-    <button onclick="disablePinLock()" style="background:none;border:none;color:#5a5a72;font-size:12px;cursor:pointer;text-decoration:underline">Desativar bloqueio por PIN</button>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:center;margin-top:4px">
+      <button onclick="setupBiometricToggle()" id="bio-toggle-btn"
+        style="background:none;border:none;font-size:12px;cursor:pointer;text-decoration:underline;color:#5a5a72"></button>
+      <button onclick="disablePinLock()" style="background:none;border:none;color:#5a5a72;font-size:12px;cursor:pointer;text-decoration:underline">Desativar bloqueio por PIN</button>
+    </div>
   </div>
 </div>
 
