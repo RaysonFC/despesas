@@ -497,50 +497,9 @@ function renderCalendar(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <p class="sec" style="margin-bottom:0">Dívidas &amp; Parcelamentos (${S.installments.length})</p>
       <button onclick="openAddInst()" style="background:${t.warn}18;border:1px solid ${t.warn}44;border-radius:10px;padding:8px 16px;color:${t.warn};font-weight:700;font-size:12px">+ Nova Dívida</button>
-    </div>`;
-
-  if(!S.installments.length){
-    html += `<div class="crd" style="text-align:center;padding:32px">
-      <p style="font-size:32px;margin-bottom:8px">✅</p>
-      <p style="color:${t.muted};font-size:13px">Nenhuma dívida cadastrada.</p>
-    </div>`;
-  } else {
-    S.installments.forEach(i => {
-      const card = S.cards.find(cd => cd.id == i.cardId);
-      const prog = (i.paidInstallments / i.installments) * 100;
-      const done = i.paidInstallments >= i.installments;
-      const overdue = !done && i.dueDay > 0 && new Date().getDate() > i.dueDay;
-      html += `<div class="crd" id="inst-${i.id}" style="margin-bottom:10px;opacity:${done?.5:1};transition:opacity .3s">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-              <p style="font-size:15px;font-weight:700">${i.desc}</p>
-              ${done?`<span class="badge" style="background:${t.accent}18;color:${t.accent}">QUITADO</span>`:""}
-              ${overdue?`<span class="badge" style="background:${t.danger}18;color:${t.danger}">ATRASADA</span>`:""}
-            </div>
-            ${card?`<div style="margin-bottom:6px">${cardHTML(card,true)}</div>`:`<span class="badge" style="background:${t.cardLight};color:${t.muted}">💵 Sem cartão</span>`}
-          </div>
-          <div style="text-align:right;flex-shrink:0;margin-left:12px">
-            <p style="font-size:22px;font-weight:800;color:${overdue?t.danger:t.warn}">${fmt(i.installmentValue)}</p>
-            <p style="font-size:10px;color:${t.muted}">por mês</p>
-          </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:${t.muted};margin-bottom:8px">
-          <span>${i.paidInstallments}/${i.installments} parcelas${i.dueDay?` · Vence dia ${i.dueDay}`:""}</span>
-          <span>Restante: ${fmt((i.installments-i.paidInstallments)*i.installmentValue)}</span>
-        </div>
-        <div class="prog-bg" style="height:5px;margin-bottom:12px">
-          <div class="prog-fill" style="width:${prog}%;background:${done?t.accent:overdue?t.danger:t.warn}"></div>
-        </div>
-        <div style="display:flex;gap:8px">
-          ${!done?`<button onclick="payInst('${i.id}','calendar')" style="flex:1;background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:10px;color:${t.accent};font-weight:700;font-size:12px">✓ Pagar parcela</button>`:""}
-          <button onclick="openEditInst('${i.id}')" style="background:${t.blue}15;border:1px solid ${t.blue}33;border-radius:10px;padding:10px 14px;color:${t.blue};font-size:12px;font-weight:700">✏️</button>
-          <button onclick="delInst('${i.id}')" style="background:${t.danger}15;border:none;border-radius:10px;padding:10px 14px;color:${t.danger};font-size:12px">✕</button>
-        </div>
-      </div>`;
-    });
-  }
-  html += `</div>`;
+    </div>
+    ${renderInstList("calendar")}
+  </div>`;
 
   document.getElementById("tab-calendar").innerHTML = html;
 }
@@ -1204,6 +1163,61 @@ function saveHomeExp(){
   _saveExpGeneric("h-");
 }
 
+
+// ── LISTA DE DÍVIDAS — FUNÇÃO GENÉRICA ───────────────────────────────
+// ctx: "cards" | "calendar" — controla estilo do card e contexto do payInst
+function renderInstList(ctx){
+  const t = T();
+  if(!S.installments.length){
+    return `<div class="crd" style="text-align:center;padding:32px${ctx==="calendar"?"":";grid-column:1/-1"}">
+      <p style="font-size:32px;margin-bottom:8px">✅</p>
+      <p style="color:${t.muted};font-size:13px">Nenhuma dívida cadastrada.</p>
+    </div>`;
+  }
+
+  const todayDay = new Date().getDate();
+  return S.installments.map(i => {
+    const card    = S.cards.find(c => c.id == i.cardId);
+    const prog    = (i.paidInstallments / i.installments) * 100;
+    const done    = i.paidInstallments >= i.installments;
+    const overdue = !done && i.dueDay > 0 && todayDay > i.dueDay;
+    const valueColor = overdue ? t.danger : t.warn;
+    const barColor   = done ? t.accent : overdue ? t.danger : t.warn;
+    const cardMb     = ctx === "calendar" ? "margin-bottom:10px;" : "";
+
+    return `<div class="crd" id="inst-${i.id}" style="${cardMb}opacity:${done ? .5 : 1};transition:opacity .3s">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+            <p style="font-size:15px;font-weight:700">${i.desc}</p>
+            ${done   ? `<span class="badge" style="background:${t.accent}18;color:${t.accent}">QUITADO</span>`  : ""}
+            ${overdue? `<span class="badge" style="background:${t.danger}18;color:${t.danger}">ATRASADA</span>` : ""}
+          </div>
+          ${card
+            ? `<div style="margin-bottom:6px">${cardHTML(card,true)}</div>`
+            : `<span class="badge" style="background:${t.cardLight};color:${t.muted}">💵 Sem cartão</span>`}
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:12px">
+          <p style="font-size:22px;font-weight:800;color:${valueColor}">${fmt(i.installmentValue)}</p>
+          <p style="font-size:10px;color:${t.muted}">por mês</p>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:${t.muted};margin-bottom:8px">
+        <span>${i.paidInstallments}/${i.installments} parcelas${i.dueDay ? ` · Vence dia ${i.dueDay}` : ""}</span>
+        <span>Restante: ${fmt((i.installments - i.paidInstallments) * i.installmentValue)}</span>
+      </div>
+      <div class="prog-bg" style="height:5px;margin-bottom:12px">
+        <div class="prog-fill" style="width:${prog}%;background:${barColor}"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${!done ? `<button onclick="payInst('${i.id}','${ctx}')" style="flex:1;background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:10px;color:${t.accent};font-weight:700;font-size:12px">✓ Pagar parcela</button>` : ""}
+        <button onclick="openEditInst('${i.id}')" style="background:${t.blue}15;border:1px solid ${t.blue}33;border-radius:10px;padding:10px 14px;color:${t.blue};font-size:12px;font-weight:700">✏️</button>
+        <button onclick="delInst('${i.id}')"     style="background:${t.danger}15;border:none;border-radius:10px;padding:10px 14px;color:${t.danger};font-size:12px">✕</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 // ── CARDS TAB ─────────────────────────────────────────────────────────
 function renderCards(){
   const t=T();
@@ -1220,13 +1234,17 @@ function renderCards(){
     });
   }
 
-  let instH="";
-  S.installments.forEach(i=>{
-    const card=S.cards.find(c=>c.id==i.cardId),prog=(i.paidInstallments/i.installments)*100,done=i.paidInstallments>=i.installments;
-    instH+=`<div class="crd" id="inst-${i.id}" style="opacity:${done?.55:1};transition:opacity .3s"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px"><div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><p style="font-size:15px;font-weight:700">${i.desc}</p>${done?`<span class="badge" style="background:${t.accent}18;color:${t.accent}">QUITADO</span>`:""}</div>${card?cardHTML(card,true):`<span class="badge" style="background:${t.cardLight};color:${t.muted}">💵 Sem cartão</span>`}</div><div style="text-align:right;flex-shrink:0;margin-left:12px"><p style="font-size:22px;font-weight:800;color:${t.warn}">${fmt(i.installmentValue)}</p><p style="font-size:10px;color:${t.muted}">por mês</p></div></div><div style="display:flex;justify-content:space-between;font-size:11px;color:${t.muted};margin-bottom:8px"><span>${i.paidInstallments}/${i.installments} parcelas</span><span>Restante: ${fmt((i.installments-i.paidInstallments)*i.installmentValue)}</span></div><div class="prog-bg" style="height:6px;margin-bottom:14px"><div class="prog-fill" style="width:${prog}%;background:${done?t.accent:t.warn}"></div></div><div style="display:flex;gap:8px">${!done?`<button onclick="payInst('${i.id}','cards')" style="flex:1;background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:10px;color:${t.accent};font-weight:700;font-size:12px">✓ Pagar parcela</button>`:""}<button onclick="openEditInst('${i.id}')" style="background:${t.blue}15;border:1px solid ${t.blue}33;border-radius:10px;padding:10px 14px;color:${t.blue};font-size:12px;font-weight:700">✏️</button><button onclick="delInst('${i.id}')" style="background:${t.danger}15;border:none;border-radius:10px;padding:10px 14px;color:${t.danger};font-size:12px">✕</button></div></div>`;
-  });
-
-  document.getElementById("tab-cards").innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px"><p class="sec" style="margin-bottom:0">Meus Cartões (${S.cards.length})</p><button onclick="openAddCard()" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:9px 18px;color:${t.accent};font-weight:700;font-size:13px">+ Novo Cartão</button></div><div class="grid-3" style="margin-bottom:32px">${cardsH}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px"><p class="sec" style="margin-bottom:0">Parcelamentos / Dívidas (${S.installments.length})</p><button onclick="openAddInst()" style="background:${t.warn}18;border:1px solid ${t.warn}44;border-radius:10px;padding:9px 18px;color:${t.warn};font-weight:700;font-size:13px">+ Nova Dívida</button></div><div class="grid-3">${instH||`<div class="crd" style="text-align:center;padding:32px;grid-column:1/-1"><p style="color:${t.muted}">Nenhum parcelamento cadastrado.</p></div>`}</div>`;
+  document.getElementById("tab-cards").innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <p class="sec" style="margin-bottom:0">Meus Cartões (${S.cards.length})</p>
+      <button onclick="openAddCard()" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:9px 18px;color:${t.accent};font-weight:700;font-size:13px">+ Novo Cartão</button>
+    </div>
+    <div class="grid-3" style="margin-bottom:32px">${cardsH}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <p class="sec" style="margin-bottom:0">Parcelamentos / Dívidas (${S.installments.length})</p>
+      <button onclick="openAddInst()" style="background:${t.warn}18;border:1px solid ${t.warn}44;border-radius:10px;padding:9px 18px;color:${t.warn};font-weight:700;font-size:13px">+ Nova Dívida</button>
+    </div>
+    <div class="grid-3">${renderInstList("cards")}</div>`;
 }
 
 // ── ALL EXPENSES ──────────────────────────────────────────────────────
