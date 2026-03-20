@@ -338,10 +338,26 @@
       <select class="inp" id="exp-card"></select>
     </div>
     <textarea class="inp" id="exp-note" placeholder="Observação (opcional) — ex: parcela do almoço com amigos" style="margin-bottom:16px;resize:vertical;min-height:60px;line-height:1.5"></textarea>
-    <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer;user-select:none">
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;user-select:none">
       <input type="checkbox" id="exp-recurring" style="width:16px;height:16px;accent-color:#00e5a0"/>
       <span style="font-size:13px;font-weight:600">Gasto recorrente (repetir todo mês)</span>
     </label>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:6px;cursor:pointer;user-select:none">
+      <input type="checkbox" id="exp-split" style="width:16px;height:16px;accent-color:#4d9fff" onchange="toggleSplitSlider('exp-split-wrap')"/>
+      <span style="font-size:13px;font-weight:600">🤝 Dividir entre o casal</span>
+    </label>
+    <div id="exp-split-wrap" style="display:none;margin-bottom:14px;padding:12px;border-radius:12px;border:1px solid #22223a;background:#1c1c2e">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;color:#5a5a72">Minha parte</span>
+        <span id="exp-split-pct-label" style="font-size:13px;font-weight:700;color:#4d9fff">50%</span>
+      </div>
+      <input type="range" id="exp-split-pct" min="0" max="100" value="50" step="5"
+        style="width:100%;accent-color:#4d9fff"
+        oninput="document.getElementById('exp-split-pct-label').textContent=this.value+'%'"/>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#5a5a72;margin-top:4px">
+        <span>0% (tudo p/ outro)</span><span>50/50</span><span>100% (tudo seu)</span>
+      </div>
+    </div>
     <button class="btn-p" onclick="saveExpense()">+ Registrar Gasto</button>
   </div>
 </div>
@@ -696,6 +712,20 @@
       <button onclick="closeModal('modal-income')" class="btn-sm">✕</button>
     </div>
     <div id="income-modal-body"></div>
+  </div>
+</div>
+
+
+<!-- ══ MODAL LIMITES POR CATEGORIA ══════════════════════════════════ -->
+<div id="modal-cat-limits" class="modal-bg" style="display:none" onclick="closeModal('modal-cat-limits')">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:460px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <p style="font-weight:700;font-size:18px">⚙️ Limites por Categoria</p>
+      <button onclick="closeModal('modal-cat-limits')" class="btn-sm">✕</button>
+    </div>
+    <p style="font-size:12px;opacity:.5;margin-bottom:20px">Define um teto de gasto mensal por categoria. Você receberá um aviso ao atingir 80% e 100% do limite.</p>
+    <div id="cat-limits-body"></div>
+    <button class="btn-p" onclick="saveCatLimits()" style="margin-top:6px">✓ Salvar limites</button>
   </div>
 </div>
 

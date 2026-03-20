@@ -84,7 +84,7 @@ const TAB_LABELS={home:"Início",cards:"Cartões",goals:"Metas",health:"Saúde F
 // ── STATE (em memória — Firebase é a fonte da verdade) ─────────────────
 let S={
   theme:"dark", salary:0, extra:0,
-  expenses:[], cards:[], installments:[], goals:[], incomes:[],
+  expenses:[], cards:[], installments:[], goals:[], incomes:[], catLimits:{},
   filterMonth:"",
   currentTab:"home", selectedBrand:"Visa", selectedInstCard:null, selectedGoalEmoji:"🎯",
 };
@@ -427,6 +427,19 @@ function renderCalendar(){
           <input type="checkbox" id="cal-recurring" style="width:15px;height:15px;accent-color:${t.accent}"/>
           Gasto recorrente (repetir todo mês)
         </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;font-size:13px;font-weight:600">
+          <input type="checkbox" id="cal-split" style="width:15px;height:15px;accent-color:${t.blue}" onchange="toggleSplitSlider('cal-split-wrap')"/>
+          🤝 Dividir com o casal
+        </label>
+        <div id="cal-split-wrap" style="display:none;margin-bottom:12px;padding:10px;border-radius:10px;border:1px solid ${t.border};background:${t.cardLight}">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:11px;color:${t.muted}">Minha parte</span>
+            <span id="cal-split-lbl" style="font-size:12px;font-weight:700;color:${t.blue}">50%</span>
+          </div>
+          <input type="range" id="cal-split-pct" min="0" max="100" value="50" step="5"
+            style="width:100%;accent-color:${t.blue}"
+            oninput="document.getElementById('cal-split-lbl').textContent=this.value+'%'"/>
+        </div>
         <button class="btn-p" onclick="saveCalExp()">+ Registrar Gasto</button>
       </div>
     </div>`;
@@ -545,7 +558,9 @@ function saveCalExp(){
   const note      = (document.getElementById("cal-note")?.value||"").trim();
   const recurring = document.getElementById("cal-recurring")?.checked||false;
   const date      = document.getElementById("cal-date").value || today();
-  const data={date,desc,amount,cat:document.getElementById("cal-cat").value,cardId:cv||null,note:note||"",recurring};
+  const calSplit  = document.getElementById("cal-split");
+  const calSplitRatio = calSplit?.checked ? parseInt(document.getElementById("cal-split-pct")?.value||"50") : null;
+  const data={date,desc,amount,cat:document.getElementById("cal-cat").value,cardId:cv||null,note:note||"",recurring,splitRatio:calSplitRatio};
   dEl.value="";aEl.value="";
   const nn=document.getElementById("cal-note");if(nn)nn.value="";
   const rc=document.getElementById("cal-recurring");if(rc)rc.checked=false;
@@ -553,7 +568,10 @@ function saveCalExp(){
   const [ey,em]=date.split("-").map(Number);
   _calYear=ey;_calMonth=em-1;
   window.fbAdd("expenses",data)
-    .then(()=>toast(recurring?"🔁 Gasto recorrente salvo!":"✅ Gasto registrado!"))
+    .then(()=>{
+      toast(recurring?"🔁 Gasto recorrente salvo!":calSplitRatio!=null?"🤝 Gasto dividido salvo!":"✅ Gasto registrado!");
+      setTimeout(()=>_checkCatLimitsAlert(date?.slice(0,7)||curM()),800);
+    })
     .catch(e=>toast("Erro: "+e.message,"err"));
 }
 
@@ -731,7 +749,10 @@ function renderReport(){
     <div class="grid-2" style="align-items:start;gap:20px">
       <div>
         <!-- Gastos por Categoria -->
-        <p class="sec">Gastos por Categoria</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <p class="sec" style="margin-bottom:0">Gastos por Categoria</p>
+          <button onclick="openCatLimitsModal()" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:10px;padding:6px 12px;color:${t.muted};font-size:12px;font-weight:700;cursor:pointer">⚙️ Limites</button>
+        </div>
         <div class="crd" style="padding:16px 20px;margin-bottom:20px">
           ${catRows?`<table style="${tStyle}">
             <thead><tr>
@@ -1128,10 +1149,10 @@ function renderHome(){
   const recentH=filtExp.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(e=>{
     const card=S.cards.find(c=>c.id==e.cardId);
     const who=window._houseMembers&&e._createdBy&&window._houseMembers[e._createdBy]?`<span class="badge" style="background:${t.warn}18;color:${t.warn}">${(window._houseMembers[e._createdBy]||"").split(" ")[0]}</span>`:"";
-    return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}${e.recurring?` <span style="font-size:9px;background:${t.blue}18;color:${t.blue};padding:1px 6px;border-radius:5px;font-weight:700">🔁</span>`:""}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p><button data-comment-id="${e.id}" onclick="openComments('${e.id}')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:5px 9px;color:${t.muted};font-size:11px;flex-shrink:0;margin-left:6px">💬</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5">📝 ${e.note}</p>`:""}</div>`;
+    return`<div class="row" style="flex-direction:column;align-items:stretch;gap:0"><div style="display:flex;align-items:center;gap:8px"><div style="width:40px;height:40px;background:${t.cardLight};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${CATS[e.cat]||"💸"}</div><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.desc}${e.recurring?` <span style="font-size:9px;background:${t.blue}18;color:${t.blue};padding:1px 6px;border-radius:5px;font-weight:700">🔁</span>`:""}${e.splitRatio!=null?` <span style="font-size:9px;background:${t.blue}18;color:${t.blue};padding:1px 6px;border-radius:5px;font-weight:700">🤝${e.splitRatio}%</span>`:""}</p><div style="display:flex;gap:6px;align-items:center;margin-top:2px"><span style="font-size:10px;color:${t.muted}">${fmtD(e.date)}</span>${card?`<span class="badge" style="background:${t.blue}18;color:${t.blue}">${card.name}</span>`:""}${who}</div></div><p style="font-weight:700;color:${t.danger};font-size:14px;white-space:nowrap">${fmt(e.amount)}</p><button data-comment-id="${e.id}" onclick="openComments('${e.id}')" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:8px;padding:5px 9px;color:${t.muted};font-size:11px;flex-shrink:0;margin-left:6px">💬</button></div>${e.note?`<p style="font-size:11px;color:${t.muted};margin-top:5px;padding:5px 8px;background:${t.cardLight};border-radius:8px;line-height:1.5">📝 ${e.note}</p>`:""}</div>`;
   }).join("");
 
-  document.getElementById("tab-home").innerHTML=`${filterBar()}${daysH}${instH}<div class="grid-2" style="align-items:start"><div><p class="sec">Registrar Gasto</p><div class="crd"><div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px"><input class="inp" type="date" id="h-date" value="${today()}"/><select class="inp" id="h-cat">${Object.keys(CATS).map(c=>`<option>${c}</option>`).join("")}</select></div><input class="inp" id="h-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/><div class="grid-2 keep-2" style="gap:10px;margin-bottom:14px"><input class="inp" type="number" id="h-amount" placeholder="Valor (R$)" step="0.01"/><select class="inp" id="h-card"><option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select></div><textarea class="inp" id="h-note" placeholder="Observação (opcional)" style="margin-bottom:10px;resize:vertical;min-height:52px;font-size:13px;line-height:1.5"></textarea><button class="btn-p" onclick="saveHomeExp()">+ Registrar Gasto</button></div></div><div><p class="sec">Recentes</p><div class="crd" style="padding:0 20px">${!filtExp.length?`<p style="padding:20px 0;color:${t.muted};font-size:13px">Nenhum gasto ainda.</p>`:recentH}</div></div></div>`;
+  document.getElementById("tab-home").innerHTML=`${filterBar()}${daysH}${instH}<div class="grid-2" style="align-items:start"><div><p class="sec">Registrar Gasto</p><div class="crd"><div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px"><input class="inp" type="date" id="h-date" value="${today()}"/><select class="inp" id="h-cat">${Object.keys(CATS).map(c=>`<option>${c}</option>`).join("")}</select></div><input class="inp" id="h-desc" placeholder="Descrição (ex: Mercado)" style="margin-bottom:10px"/><div class="grid-2 keep-2" style="gap:10px;margin-bottom:14px"><input class="inp" type="number" id="h-amount" placeholder="Valor (R$)" step="0.01"/><select class="inp" id="h-card"><option value="">💵 Dinheiro</option>${S.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</select></div><textarea class="inp" id="h-note" placeholder="Observação (opcional)" style="margin-bottom:10px;resize:vertical;min-height:52px;font-size:13px;line-height:1.5"></textarea><label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" id="h-split" style="width:15px;height:15px;accent-color:${t.blue}" onchange="toggleSplitSlider('h-split-wrap')"/>🤝 Dividir com o casal</label><div id="h-split-wrap" style="display:none;margin-bottom:10px;padding:10px;border-radius:10px;border:1px solid ${t.border};background:${t.cardLight}"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;color:${t.muted}">Minha parte</span><span id="h-split-lbl" style="font-size:12px;font-weight:700;color:${t.blue}">50%</span></div><input type="range" id="h-split-pct" min="0" max="100" value="50" step="5" style="width:100%;accent-color:${t.blue}" oninput="document.getElementById('h-split-lbl').textContent=this.value+'%'"/></div><button class="btn-p" onclick="saveHomeExp()">+ Registrar Gasto</button></div></div><div><p class="sec">Recentes</p><div class="crd" style="padding:0 20px">${!filtExp.length?`<p style="padding:20px 0;color:${t.muted};font-size:13px">Nenhum gasto ainda.</p>`:recentH}</div></div></div>`;
 }
 
 function saveHomeExp(){
@@ -1143,10 +1164,15 @@ function saveHomeExp(){
   if(!ok){toast("Preencha descrição e valor!","err");return;}
   const cv=document.getElementById("h-card").value;
   const note=(document.getElementById("h-note")?.value||"").trim();
-  const data={date:document.getElementById("h-date").value,desc,amount,cat:document.getElementById("h-cat").value,cardId:cv||null,note:note||""};
+  const hSplit=document.getElementById("h-split");
+  const hSplitRatio=hSplit?.checked?parseInt(document.getElementById("h-split-pct")?.value||"50"):null;
+  const data={date:document.getElementById("h-date").value,desc,amount,cat:document.getElementById("h-cat").value,cardId:cv||null,note:note||"",splitRatio:hSplitRatio};
   dEl.value="";aEl.value="";
   const hn=document.getElementById("h-note");if(hn)hn.value="";
-  window.fbAdd("expenses",data).then(()=>toast("✅ Gasto registrado!")).catch(e=>toast("Erro: "+e.message,"err"));
+  window.fbAdd("expenses",data).then(()=>{
+    toast("✅ Gasto registrado!");
+    setTimeout(()=>_checkCatLimitsAlert(data.date?.slice(0,7)||curM()),800);
+  }).catch(e=>toast("Erro: "+e.message,"err"));
 }
 
 // ── CARDS TAB ─────────────────────────────────────────────────────────
@@ -1435,6 +1461,62 @@ function _updateExpButtonBadge(expId){
   });
 }
 
+
+// ── DIVISÃO DE GASTO ENTRE O CASAL ───────────────────────────────────
+function toggleSplitSlider(wrapId){
+  const wrap = document.getElementById(wrapId);
+  const chk  = document.getElementById(wrapId.replace('-wrap',''));
+  if(!wrap||!chk) return;
+  wrap.style.display = chk.checked ? "block" : "none";
+}
+
+// Calcula o acerto do mês: quem deve quanto a quem
+// Retorna { balance, debtor, creditor, items }
+function calcAcerto(monthStr){
+  const m   = monthStr || curM();
+  const myUid = window._currentUser?.uid;
+  if(!myUid) return null;
+
+  // Descobre o uid do outro membro
+  const members = Object.entries(window._houseMembers||{});
+  const otherEntry = members.find(([uid]) => uid !== myUid);
+  if(!members.length) return null;
+
+  const myName    = window._houseMembers?.[myUid]    || window._currentUser?.name || "Eu";
+  const otherUid  = otherEntry?.[0]  || null;
+  const otherName = otherEntry?.[1]  || "Outro";
+
+  // Gastos com split do mês
+  const splitExps = S.expenses.filter(e =>
+    e.date?.startsWith(m) && e.splitRatio != null
+  );
+
+  // Para cada gasto dividido: quem pagou e quanto cada um deve
+  let balance = 0; // positivo = outro me deve; negativo = eu devo ao outro
+  const items = splitExps.map(e => {
+    const paidBy     = e._createdBy;
+    const myRatio    = paidBy === myUid ? (e.splitRatio / 100) : (1 - e.splitRatio / 100);
+    const otherRatio = 1 - myRatio;
+    const myShare    = e.amount * myRatio;
+    const otherShare = e.amount * otherRatio;
+    // Quem pagou = colocou 100% do valor
+    // Ajuste: quem pagou adiantou a parte do outro
+    const paidByMe = paidBy === myUid;
+    const advance  = paidByMe ? otherShare : -myShare;
+    balance += advance;
+    return {
+      desc: e.desc,
+      amount: e.amount,
+      myShare,
+      otherShare,
+      paidByMe,
+      paidBy: paidBy === myUid ? myName : otherName,
+    };
+  });
+
+  return { balance, myName, otherName, items };
+}
+
 // ── BUSCA DE GASTOS ───────────────────────────────────────────────────
 let _expSearch = "";
 function setExpSearch(v){ _expSearch=v.trim().toLowerCase(); scheduleRender("expenses"); }
@@ -1559,20 +1641,37 @@ function renderHealth(){
   const pct=Math.min((tot/(totalIncome||1))*100,100);
   const h=pct<50?{e:"😊",l:"Ótimo!",c:t.accent}:pct<75?{e:"😐",l:"Atenção",c:t.warn}:{e:"😰",l:"Crítico",c:t.danger};
 
-  // Categorias
+  // Categorias com limites
+  const cm_health = fm || curM();
   let catBars="";
   Object.keys(CATS).forEach(cat=>{
     const cT=filtExp.filter(e=>e.cat===cat).reduce((s,e)=>s+e.amount,0);
     if(!cT)return;
     const cPct=(cT/(tot||1))*100;
-    catBars+=`<div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-        <span style="font-size:13px">${CATS[cat]} ${cat}</span>
-        <span style="font-size:12px;font-weight:700">${fmt(cT)} <span style="color:${t.muted};font-weight:400">(${cPct.toFixed(0)}%)</span></span>
+    const limit = S.catLimits?.[cat] || 0;
+    const limitPct = limit>0 ? Math.min((cT/limit)*100,100) : 0;
+    const limitColor = limitPct>=100 ? t.danger : limitPct>=80 ? t.warn : t.accent;
+    const limitBadge = limit>0
+      ? `<span style="font-size:10px;font-weight:700;color:${limitColor};background:${limitColor}18;padding:1px 7px;border-radius:99px;margin-left:6px">${limitPct.toFixed(0)}% do limite</span>`
+      : "";
+    const limitBar = limit>0
+      ? `<div class="prog-bg" style="height:7px;border-radius:99px;margin-top:4px">
+           <div class="prog-fill" style="width:${limitPct}%;background:${limitColor};border-radius:99px;transition:width .5s"></div>
+           <div style="position:relative;margin-top:2px;display:flex;justify-content:space-between;font-size:10px;color:${t.muted}">
+           </div>
+         </div>
+         <div style="display:flex;justify-content:space-between;font-size:10px;color:${t.muted};margin-top:3px">
+           <span>${fmt(cT)} gasto</span><span>Limite: ${fmt(limit)}</span>
+         </div>`
+      : `<div class="prog-bg" style="height:7px;border-radius:99px">
+           <div class="prog-fill" style="width:${cPct}%;background:linear-gradient(90deg,${t.blue},${t.accent});border-radius:99px"></div>
+         </div>`;
+    catBars+=`<div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;flex-wrap:wrap;gap:4px">
+        <span style="font-size:13px;font-weight:600">${CATS[cat]} ${cat}${limitBadge}</span>
+        <span style="font-size:12px;font-weight:700;color:${limit>0?limitColor:t.text}">${fmt(cT)} <span style="color:${t.muted};font-weight:400">(${cPct.toFixed(0)}%)</span></span>
       </div>
-      <div class="prog-bg" style="height:7px;border-radius:99px">
-        <div class="prog-fill" style="width:${cPct}%;background:linear-gradient(90deg,${t.blue},${t.accent});border-radius:99px"></div>
-      </div>
+      ${limitBar}
     </div>`;
   });
 
@@ -1606,7 +1705,10 @@ function renderHealth(){
       </div>
       <div>
         ${chartSection}
-        <p class="sec">Gastos por Categoria</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <p class="sec" style="margin-bottom:0">Gastos por Categoria</p>
+          <button onclick="openCatLimitsModal()" style="background:${t.cardLight};border:1px solid ${t.border};border-radius:10px;padding:6px 12px;color:${t.muted};font-size:12px;font-weight:700;cursor:pointer">⚙️ Limites</button>
+        </div>
         <div class="crd" style="padding:20px;margin-bottom:20px">
           ${catBars||`<p style="color:${t.muted};font-size:13px">Nenhum gasto registrado.</p>`}
         </div>
@@ -1634,6 +1736,31 @@ function renderHealth(){
                 <p style="font-size:14px;font-weight:600">${name}</p>
               </div>`).join("")}
           </div>`:""}
+        ${(()=>{
+          const acerto=calcAcerto(fm||curM());
+          if(!acerto||!acerto.items.length)return`<p class="sec">Acerto do Mês 🤝</p><div class="crd" style="text-align:center;padding:24px"><p style="color:${t.muted};font-size:13px">Nenhum gasto dividido em ${fmtMonth(fm||curM())}.<br>Use o toggle 🤝 ao registrar um gasto.</p></div>`;
+          const {balance,myName,otherName,items}=acerto;
+          const absBal=Math.abs(balance);
+          const isCredor=balance>0;
+          const statusColor=balance===0?t.accent:isCredor?t.accent:t.danger;
+          const statusMsg=balance===0?`✅ Vocês estão quites!`:isCredor?`${otherName} deve ${fmt(absBal)} para ${myName}`:`${myName} deve ${fmt(absBal)} para ${otherName}`;
+          const rows=items.map(i=>`
+            <div class="row" style="gap:10px;flex-wrap:wrap">
+              <div style="flex:1;min-width:0">
+                <p style="font-size:13px;font-weight:600">${i.desc}</p>
+                <p style="font-size:11px;color:${t.muted}">Pago por: ${i.paidBy} · Total: ${fmt(i.amount)}</p>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <p style="font-size:12px;color:${t.accent};font-weight:700">Sua parte: ${fmt(i.myShare)}</p>
+                <p style="font-size:12px;color:${t.muted}">${otherName}: ${fmt(i.otherShare)}</p>
+              </div>
+            </div>`).join("");
+          return`<p class="sec">Acerto do Mês 🤝</p>
+            <div class="crd" style="padding:0 18px;margin-bottom:10px">${rows}</div>
+            <div style="padding:14px 18px;border-radius:14px;border:1px solid ${statusColor}44;background:${statusColor}12;text-align:center">
+              <p style="font-size:15px;font-weight:800;color:${statusColor}">${statusMsg}</p>
+            </div>`;
+        })()}
       </div>
     </div>`;
 
@@ -2042,12 +2169,17 @@ function saveExpense(){
   const cv=document.getElementById("exp-card").value;
   const note=document.getElementById("exp-note").value.trim();
   const recurring=document.getElementById("exp-recurring")?.checked||false;
-  const data={date:document.getElementById("exp-date").value,desc,amount,cat:document.getElementById("exp-cat").value,cardId:cv||null,note:note||"",recurring};
+  const splitEl=document.getElementById("exp-split");
+  const splitRatio=splitEl?.checked ? parseInt(document.getElementById("exp-split-pct")?.value||"50") : null;
+  const data={date:document.getElementById("exp-date").value,desc,amount,cat:document.getElementById("exp-cat").value,cardId:cv||null,note:note||"",recurring,splitRatio};
   window.fbAdd("expenses",data).then(()=>{
-    toast(recurring?"🔁 Gasto recorrente salvo!":"✅ Gasto registrado!");
+    toast(recurring?"🔁 Gasto recorrente salvo!":splitRatio!=null?"🤝 Gasto dividido salvo!":"✅ Gasto registrado!");
+    setTimeout(()=>_checkCatLimitsAlert(data.date?.slice(0,7)||curM()),800);
     closeModal("modal-expense");
     document.getElementById("exp-note").value="";
     const rc=document.getElementById("exp-recurring");if(rc)rc.checked=false;
+    if(splitEl)splitEl.checked=false;
+    const sw=document.getElementById("exp-split-wrap");if(sw)sw.style.display="none";
   }).catch(e=>toast("Erro: "+e.message,"err"));
 }
 
@@ -2580,6 +2712,86 @@ function delIncome(id){
     }
   });
 }
+
+
+// ── LIMITES POR CATEGORIA ─────────────────────────────────────────────
+
+function getCatSpent(cat, monthStr){
+  const m = monthStr || curM();
+  return S.expenses
+    .filter(e => e.cat === cat && e.date?.startsWith(m))
+    .reduce((s,e) => s+e.amount, 0);
+}
+
+function openCatLimitsModal(){
+  const t = T();
+  const el = document.getElementById("cat-limits-body");
+  if(!el) return;
+  const cm = curM();
+
+  el.innerHTML = Object.entries(CATS).map(([cat, emoji]) => {
+    const spent = getCatSpent(cat, cm);
+    const limit = S.catLimits[cat] || 0;
+    const pct   = limit > 0 ? Math.min((spent/limit)*100, 100) : 0;
+    const color = pct >= 100 ? t.danger : pct >= 80 ? t.warn : t.accent;
+    return `
+      <div style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label style="font-size:14px;font-weight:600">${emoji} ${cat}</label>
+          ${limit>0?`<span style="font-size:11px;color:${color};font-weight:700">${fmt(spent)} / ${fmt(limit)}</span>`:`<span style="font-size:11px;color:${t.muted}">sem limite</span>`}
+        </div>
+        ${limit>0?`<div class="prog-bg" style="height:5px;margin-bottom:8px">
+          <div class="prog-fill" style="width:${pct}%;background:${color};transition:width .4s"></div>
+        </div>`:""}
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="inp" type="number" id="limit-${cat}"
+            placeholder="Limite (R$, 0 = sem limite)"
+            value="${limit||""}"
+            style="flex:1;padding:8px 12px;font-size:13px"
+            step="50"/>
+        </div>
+      </div>`;
+  }).join("");
+
+  openModal("modal-cat-limits");
+}
+
+function saveCatLimits(){
+  const limits = {};
+  Object.keys(CATS).forEach(cat => {
+    const v = parseFloat(document.getElementById(`limit-${cat}`)?.value);
+    if(v > 0) limits[cat] = v;
+  });
+  window.fbSaveHouse({ catLimits: limits })
+    .then(() => {
+      toast("✅ Limites salvos!");
+      closeModal("modal-cat-limits");
+      scheduleRender("house");
+      _checkCatLimitsAlert(curM());
+    })
+    .catch(e => toast("Erro: "+e.message, "err"));
+}
+
+function _checkCatLimitsAlert(monthStr){
+  if(!S.catLimits || !Object.keys(S.catLimits).length) return;
+  const m = monthStr || curM();
+  Object.entries(S.catLimits).forEach(([cat, limit]) => {
+    if(!limit) return;
+    const spent = getCatSpent(cat, m);
+    const pct   = (spent / limit) * 100;
+    const key   = `cat-limit-notif-${cat}-${m}-${Math.floor(pct/10)*10}`;
+    if(pct >= 100 && !localStorage.getItem(key)){
+      localStorage.setItem(key, "1");
+      toast(`🚨 Limite de ${cat} atingido! (${fmt(spent)} / ${fmt(limit)})`, "err");
+    } else if(pct >= 80 && !localStorage.getItem(key)){
+      localStorage.setItem(key, "1");
+      toast(`⚠️ ${cat}: 80% do limite usado (${fmt(spent)} / ${fmt(limit)})`, "info");
+    }
+  });
+}
+
+// Expõe para firebase.js chamar após registrar gasto
+window._checkCatLimitsAlert = _checkCatLimitsAlert;
 
 // ── BLOQUEIO POR PIN ──────────────────────────────────────────────────
 const PIN_TIMEOUT = 5 * 60 * 1000; // 5 minutos

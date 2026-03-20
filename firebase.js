@@ -303,8 +303,9 @@ function startListeners(user) {
   unsubs.push(onSnapshot(doc(db, "houses", HOUSE_ID), snap => {
     if (!snap.exists()) return;
     const d = snap.data();
-    S.salary = d.salary || 0;
-    S.extra  = d.extra  || 0;
+    S.salary    = d.salary    || 0;
+    S.extra     = d.extra     || 0;
+    S.catLimits = d.catLimits || {};
     // Tema pessoal: só aplica o tema DO usuário atual
     const myTheme = d.themes?.[user.uid];
     if (myTheme && myTheme !== S.theme) {
