@@ -240,10 +240,6 @@
                    align-items:center;justify-content:center;padding:0 4px;pointer-events:none">
           </span>
         </div>
-        <!-- Busca global -->
-        <button onclick="openGlobalSearch()" id="global-search-btn"
-          style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px 6px;line-height:1;display:flex;align-items:center"
-          title="Busca global">🔍</button>
         <!-- Salário + Extra + Total -->
         <div id="salary-topbar"></div>
       </div>
@@ -745,31 +741,6 @@
     <div id="cat-limits-body"></div>
     <button class="btn-p" onclick="saveCatLimits()" style="margin-top:6px">✓ Salvar limites</button>
   </div>
-</div>
-
-
-<!-- ══ BUSCA GLOBAL ═══════════════════════════════════════════════════ -->
-<div id="global-search-overlay"
-  style="display:none;position:fixed;inset:0;z-index:9000;flex-direction:column;"
-  onclick="closeGlobalSearch()">
-
-  <!-- Header com input -->
-  <div id="gsh-header" onclick="event.stopPropagation()"
-    style="padding:16px 20px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid;flex-shrink:0">
-    <span style="font-size:20px;flex-shrink:0">🔍</span>
-    <input id="gsh-input" class="inp"
-      placeholder="Buscar gastos, parcelas, metas, cartões..."
-      style="flex:1;font-size:15px;border:none;background:transparent;padding:0;outline:none"
-      oninput="_gsRender(this.value)"
-      onkeydown="if(event.key==='Escape')closeGlobalSearch()"/>
-    <button onclick="closeGlobalSearch()" class="btn-sm" style="flex-shrink:0">✕</button>
-  </div>
-
-  <!-- Resultados -->
-  <div id="gsh-results" onclick="event.stopPropagation()"
-    style="flex:1;overflow-y:auto;padding:12px 20px 40px">
-  </div>
-
 </div>
 
 </body>
