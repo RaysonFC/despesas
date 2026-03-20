@@ -3,7 +3,7 @@
    Service Worker: cache offline + atualização automática
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME  = 'meuorcamento-v1';
+const CACHE_NAME  = 'meuorcamento-v2';
 const CACHE_URLS  = [
   '/despesas/',
   '/despesas/index.html',
