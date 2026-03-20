@@ -195,6 +195,7 @@
     <!-- Utilitários (sempre visíveis, inclusive no mobile) -->
     <button onclick="openThemes()" class="side-btn"><span class="icon" id="theme-icon-side">🌙</span>Tema</button>
     <button onclick="openBackup()" class="side-btn"><span class="icon">💾</span>Backup</button>
+    <button onclick="openIncomeModal()" class="side-btn"><span class="icon">💸</span>Renda Extra</button>
     <button onclick="openPinSetup()" class="side-btn"><span class="icon">🔒</span>Bloqueio PIN</button>
 
     <!-- Rodapé da sidebar: sync + salário + usuário + sair -->
@@ -683,6 +684,18 @@
         <button onclick="sendComment()" class="btn-p" style="width:auto;padding:10px 16px;flex-shrink:0;align-self:flex-end">Enviar</button>
       </div>
     </div>
+  </div>
+</div>
+
+
+<!-- ══ MODAL RENDA VARIÁVEL ══════════════════════════════════════════ -->
+<div id="modal-income" class="modal-bg" style="display:none" onclick="closeModal('modal-income')">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <p style="font-weight:700;font-size:18px">💸 Renda Extra do Mês</p>
+      <button onclick="closeModal('modal-income')" class="btn-sm">✕</button>
+    </div>
+    <div id="income-modal-body"></div>
   </div>
 </div>
 

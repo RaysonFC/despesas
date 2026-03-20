@@ -331,6 +331,12 @@ function startListeners(user) {
     if (document.getElementById("layout").style.display !== "none") scheduleRender("goals");
   }));
 
+  // Renda variável mensal
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "incomes"), snap => {
+    S.incomes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (document.getElementById("layout").style.display !== "none") scheduleRender("house");
+  }));
+
   showAppScreen();
 
   // ── LISTENER GLOBAL DE COMENTÁRIOS ─────────────────────────────────
@@ -419,6 +425,20 @@ window.fbAdd = async (col, data) => {
 
 window.fbUpdate = async (col, id, data) => {
   await updateDoc(doc(db, "houses", HOUSE_ID, col, id), data);
+};
+
+window.fbAddIncome = async (data) => {
+  const ref = await addDoc(collection(db, "houses", HOUSE_ID, "incomes"), {
+    ...data,
+    _createdAt:     new Date().toISOString(),
+    _createdBy:     auth.currentUser?.uid || "",
+    _createdByName: window._currentUser?.name || "",
+  });
+  return ref.id;
+};
+
+window.fbDelIncome = async (id) => {
+  await deleteDoc(doc(db, "houses", HOUSE_ID, "incomes", id));
 };
 
 window.fbDel = async (col, id) => {

@@ -84,7 +84,7 @@ const TAB_LABELS={home:"Início",cards:"Cartões",goals:"Metas",health:"Saúde F
 // ── STATE (em memória — Firebase é a fonte da verdade) ─────────────────
 let S={
   theme:"dark", salary:0, extra:0,
-  expenses:[], cards:[], installments:[], goals:[],
+  expenses:[], cards:[], installments:[], goals:[], incomes:[],
   filterMonth:"",
   currentTab:"home", selectedBrand:"Visa", selectedInstCard:null, selectedGoalEmoji:"🎯",
 };
@@ -96,6 +96,25 @@ const curM=()=>{const n=new Date();return`${n.getFullYear()}-${String(n.getMonth
 const fmtMonth=m=>{if(!m)return"";const[y,mo]=m.split("-");return new Date(y,mo-1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});};
 
 
+
+
+// ── RENDA VARIÁVEL ────────────────────────────────────────────────────
+const INCOME_TYPES = {
+  freelance: {label:"Freelance",   emoji:"💻"},
+  bonus:     {label:"Bônus",       emoji:"🎁"},
+  aluguel:   {label:"Aluguel",     emoji:"🏠"},
+  decimo:    {label:"13º Salário", emoji:"🎄"},
+  outros:    {label:"Outros",      emoji:"💸"},
+};
+
+function incomeDoMes(monthStr){
+  const m = monthStr || curM();
+  return (S.incomes||[]).filter(i => i.date?.startsWith(m));
+}
+
+function totalIncomeVar(monthStr){
+  return incomeDoMes(monthStr).reduce((s,i) => s+i.amount, 0);
+}
 
 // ── TOAST ─────────────────────────────────────────────────────────────
 let _toastT=null;
@@ -617,7 +636,8 @@ function renderReport(){
   const eT=mExp.reduce((s,e)=>s+e.amount,0);
   const iT=mInst.reduce((s,i)=>s+i.installmentValue,0);
   const tot=eT+iT;
-  const income=S.salary+S.extra;
+  const iV=totalIncomeVar(m);
+  const income=S.salary+S.extra+iV;
   const rem=income-tot;
   const pct=income?Math.min((tot/income)*100,100):0;
   const hLabel=pct<50?"Ótimo! 😊":pct<75?"Atenção! 😐":"Crítico! 😰";
@@ -776,7 +796,8 @@ function exportReportPDF(){
   const eT=mExp.reduce((s,e)=>s+e.amount,0);
   const iT=mInst.reduce((s,i)=>s+i.installmentValue,0);
   const tot=eT+iT;
-  const income=S.salary+S.extra;
+  const iV=totalIncomeVar(m);
+  const income=S.salary+S.extra+iV;
   const rem=income-tot;
   const pct=income?Math.min((tot/income)*100,100):0;
 
@@ -907,9 +928,26 @@ function renderAll(){
 }
 
 function renderSalarySidebar(){
-  const t=T(),total=S.salary+S.extra;
+  const t=T();
+  const iV=totalIncomeVar(curM());
+  const total=S.salary+S.extra+iV;
   const el=document.getElementById("salary-sidebar");if(!el)return;
-  el.innerHTML=`<div style="padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}"><button onclick="openSalaryModal()" style="display:block;width:100%;background:none;border:none;text-align:left;padding:0;cursor:pointer"><p style="font-size:10px;color:${t.muted};margin-bottom:2px">Salário</p><p style="color:${t.accent};font-size:14px;font-weight:800;margin-bottom:6px">${fmt(S.salary)} ✎</p><p style="font-size:10px;color:${t.muted};margin-bottom:2px">Extra</p><p style="color:${t.blue};font-size:14px;font-weight:800;margin-bottom:6px">${fmt(S.extra)} ✎</p><div style="border-top:1px solid ${t.border};padding-top:6px"><p style="font-size:10px;color:${t.muted};margin-bottom:2px">Total em conta</p><p style="color:${t.accent};font-size:16px;font-weight:800">${fmt(total)}</p></div></button></div>`;
+  el.innerHTML=`<div style="padding:10px 14px;border-radius:14px;border:1px solid ${t.border};background:${t.cardLight}">
+    <button onclick="openSalaryModal()" style="display:block;width:100%;background:none;border:none;text-align:left;padding:0;cursor:pointer;margin-bottom:6px">
+      <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Salário</p>
+      <p style="color:${t.accent};font-size:14px;font-weight:800;margin-bottom:6px">${fmt(S.salary)} ✎</p>
+      <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Extra (fixo)</p>
+      <p style="color:${t.blue};font-size:14px;font-weight:800">${fmt(S.extra)} ✎</p>
+    </button>
+    ${iV>0?`<button onclick="openIncomeModal()" style="display:block;width:100%;background:none;border:none;text-align:left;padding:0;cursor:pointer;margin-bottom:6px">
+      <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Renda extra (mês)</p>
+      <p style="color:${t.accent};font-size:14px;font-weight:800">${fmt(iV)} ✎</p>
+    </button>`:`<button onclick="openIncomeModal()" style="width:100%;margin-top:6px;background:${t.cardLight};border:1px dashed ${t.border};border-radius:10px;padding:7px;color:${t.muted};font-size:11px;cursor:pointer">+ Adicionar renda extra</button>`}
+    <div style="border-top:1px solid ${t.border};padding-top:8px;margin-top:6px">
+      <p style="font-size:10px;color:${t.muted};margin-bottom:2px">Total do mês</p>
+      <p style="color:${t.accent};font-size:16px;font-weight:800">${fmt(total)}</p>
+    </div>
+  </div>`;
 }
 function renderSalaryTopbar(){
   const t=T(),total=S.salary+S.extra;
@@ -980,14 +1018,22 @@ function renderStatus(){
   // Contribuições automáticas de metas ativas (não concluídas)
   const gT=S.goals.filter(g=>g.monthlyContrib>0&&g.saved<g.target)
                   .reduce((s,g)=>s+g.monthlyContrib,0);
-  const totalIncome=S.salary+S.extra,tot=eT+iT+gT,rem=totalIncome-tot;
-  const pct=Math.min((tot/totalIncome)*100,100);
+  const iV=totalIncomeVar(cm);
+  const totalIncome=S.salary+S.extra+iV,tot=eT+iT+gT,rem=totalIncome-tot;
+  const pct=Math.min((tot/(totalIncome||1))*100,100);
   const h=pct<50?{l:"Ótimo!",c:t.accent}:pct<75?{l:"Atenção",c:t.warn}:{l:"Crítico",c:t.danger};
   sc.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px">
     <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Total Comprometido <span style="color:${t.blue}">${fmtMonth(cm)}</span></p><p style="font-size:28px;font-weight:800;color:${t.danger}">${fmt(tot)}</p><p style="font-size:11px;color:${t.muted};margin-top:4px"><span style="color:${t.warn}">Parcelas: ${fmt(iT)}</span> &nbsp;·&nbsp; <span style="color:${t.blue}">Avulsos: ${fmt(eT)}</span>${gT>0?` &nbsp;·&nbsp; <span style="color:${t.accent}">Metas: ${fmt(gT)}</span>`:""}</p></div>
-    <div><p style="font-size:11px;color:${t.muted};margin-bottom:4px">Disponível Livre</p><p style="font-size:28px;font-weight:800;color:${rem>=0?t.accent:t.danger}">${fmt(rem)}</p></div>
+    <div>
+      <p style="font-size:11px;color:${t.muted};margin-bottom:4px">Disponível Livre</p>
+      <p style="font-size:28px;font-weight:800;color:${rem>=0?t.accent:t.danger}">${fmt(rem)}</p>
+      ${iV>0?`<p style="font-size:11px;color:${t.muted};margin-top:4px">
+        <span style="color:${t.accent}">+${fmt(iV)} extra</span>
+        &nbsp;<button onclick="openIncomeModal()" style="background:none;border:none;color:${t.muted};font-size:10px;cursor:pointer;text-decoration:underline">ver</button>
+      </p>`:`<button onclick="openIncomeModal()" style="background:none;border:none;color:${t.muted};font-size:11px;cursor:pointer;text-decoration:underline;padding:0;margin-top:4px">+ renda extra</button>`}
+    </div>
     <div style="display:flex;flex-direction:column;justify-content:center;gap:8px">
-      <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:${t.muted}">${pct.toFixed(1)}% do salário</span><span style="font-weight:800;color:${h.c}">${h.l}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:${t.muted}">${pct.toFixed(1)}% da renda</span><span style="font-weight:800;color:${h.c}">${h.l}</span></div>
       <div class="prog-bg" style="height:18px;border-radius:99px">
         <div class="prog-fill" style="height:18px;width:${pct}%;background:linear-gradient(90deg,${t.accent},${pct>75?t.danger:t.warn});border-radius:99px;transition:width .6s"></div>
       </div>
@@ -2456,6 +2502,84 @@ function initOfflineBanner(){
 // Inicia o banner assim que o DOM carrega
 document.addEventListener("DOMContentLoaded",initOfflineBanner);
 
+
+
+// ── MODAL RENDA VARIÁVEL ──────────────────────────────────────────────
+function openIncomeModal(){
+  const t=T();
+  _renderIncomeModal();
+  openModal("modal-income");
+}
+
+function _renderIncomeModal(){
+  const t=T();
+  const cm=curM();
+  const list=incomeDoMes(cm);
+  const total=list.reduce((s,i)=>s+i.amount,0);
+  const el=document.getElementById("income-modal-body");
+  if(!el)return;
+
+  const rows=list.length?list.map(i=>`
+    <div class="row" style="gap:10px;align-items:center">
+      <span style="font-size:20px">${INCOME_TYPES[i.type]?.emoji||"💸"}</span>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:13px;font-weight:600">${i.desc||INCOME_TYPES[i.type]?.label||i.type}</p>
+        <p style="font-size:11px;color:${t.muted}">${fmtD(i.date)} · ${INCOME_TYPES[i.type]?.label||i.type}</p>
+      </div>
+      <p style="font-weight:700;color:${t.accent};white-space:nowrap">${fmt(i.amount)}</p>
+      <button onclick="delIncome('${i.id}')" style="background:${t.danger}15;border:none;border-radius:8px;padding:6px 10px;color:${t.danger};font-size:12px;cursor:pointer">✕</button>
+    </div>`).join("")
+    :`<p style="color:${t.muted};font-size:13px;padding:12px 0">Nenhuma entrada extra em ${fmtMonth(cm)}.</p>`;
+
+  el.innerHTML=`
+    ${list.length?`<div style="margin-bottom:16px;padding:12px 14px;background:${t.cardLight};border-radius:12px;border:1px solid ${t.border}">
+      <p style="font-size:11px;color:${t.muted};margin-bottom:2px">Total de entradas extras em ${fmtMonth(cm)}</p>
+      <p style="font-size:22px;font-weight:800;color:${t.accent}">${fmt(total)}</p>
+    </div>`:""}
+    <div class="crd" style="padding:0 16px;margin-bottom:18px">${rows}</div>
+    <p class="sec">Nova entrada</p>
+    <div class="grid-2 keep-2" style="gap:10px;margin-bottom:10px">
+      <input class="inp" type="date" id="income-date" value="${today()}"/>
+      <select class="inp" id="income-type">
+        ${Object.entries(INCOME_TYPES).map(([k,v])=>`<option value="${k}">${v.emoji} ${v.label}</option>`).join("")}
+      </select>
+    </div>
+    <input class="inp" id="income-desc" placeholder="Descrição (ex: Projeto React)" style="margin-bottom:10px"/>
+    <input class="inp" type="number" id="income-amount" placeholder="Valor (R$)" step="0.01" style="margin-bottom:14px"/>
+    <button class="btn-p" onclick="saveIncome()" style="background:${t.accent};color:#000">+ Registrar entrada</button>`;
+}
+
+function saveIncome(){
+  const aEl=document.getElementById("income-amount");
+  const desc=document.getElementById("income-desc").value.trim();
+  const amount=parseFloat(aEl.value);
+  if(!amount||amount<=0){aEl.classList.add("error");setTimeout(()=>aEl.classList.remove("error"),600);toast("Informe um valor válido!","err");return;}
+  const data={
+    date:   document.getElementById("income-date").value||today(),
+    type:   document.getElementById("income-type").value,
+    desc:   desc||"",
+    amount,
+  };
+  document.getElementById("income-desc").value="";
+  aEl.value="";
+  window.fbAddIncome(data)
+    .then(()=>{ toast("✅ Entrada registrada!"); _renderIncomeModal(); })
+    .catch(e=>toast("Erro: "+e.message,"err"));
+}
+
+function delIncome(id){
+  confirm2({
+    emoji:"🗑",
+    title:"Remover entrada?",
+    msg:"A entrada de renda extra será removida.",
+    okLabel:"Remover",
+    ok:()=>{
+      window.fbDelIncome(id)
+        .then(()=>{ toast("Entrada removida","info"); _renderIncomeModal(); })
+        .catch(e=>toast("Erro: "+e.message,"err"));
+    }
+  });
+}
 
 // ── BLOQUEIO POR PIN ──────────────────────────────────────────────────
 const PIN_TIMEOUT = 5 * 60 * 1000; // 5 minutos
