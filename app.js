@@ -747,6 +747,7 @@ function openComments(expId){
   if(_commentUnsub){ _commentUnsub(); _commentUnsub = null; }
 
   // Abre o modal e inicia o listener em tempo real
+  _clearUnread(expId);
   openModal("modal-comments");
   renderCommentsList([]);
 
@@ -879,10 +880,104 @@ function getCommentCount(expId){
   return 0; // será atualizado dinamicamente pelo listener
 }
 
+
+function openCommentNotifPanel(){
+  const t = T();
+  if(_totalUnread === 0){
+    toast("Nenhum comentário novo","info");
+    return;
+  }
+  // Monta lista de gastos com não lidos
+  const entries = Object.entries(_unreadComments)
+    .filter(([,count])=>count>0)
+    .map(([expId, count])=>{
+      const e = S.expenses.find(x=>x.id===expId);
+      if(!e) return "";
+      return `<div class="row" style="cursor:pointer;gap:12px" onclick="_clearUnread('${expId}');openComments('${expId}')">
+        <div style="width:36px;height:36px;background:${t.blue}18;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${CATS[e.cat]||"💸"}</div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:13px;font-weight:600">${e.desc}</p>
+          <p style="font-size:11px;color:${t.muted}">${fmt(e.amount)} · ${fmtD(e.date)}</p>
+        </div>
+        <span style="background:${t.danger};color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;flex-shrink:0">${count} novo${count>1?"s":""}</span>
+      </div>`;
+    }).join("");
+
+  confirm2({
+    emoji:"💬",
+    title:"Comentários novos",
+    msg:"",
+    okLabel:"Ver tudo",
+    okColor:t.blue,
+    ok:()=>{ setTab("all"); _clearUnread(); },
+  });
+  // Injeta a lista no modal confirm
+  setTimeout(()=>{
+    const msgEl = document.getElementById("confirm-msg");
+    if(msgEl) msgEl.innerHTML = `<div style="text-align:left;margin-top:8px">${entries}</div>`;
+  },10);
+}
+
 function sendQuickReaction(emoji){
   if(!_commentExpId) return;
   window.fbAddComment(_commentExpId, { text: emoji })
     .catch(e => toast("Erro: "+e.message,"err"));
+}
+
+
+// ── BADGE DE COMENTÁRIOS NÃO LIDOS ───────────────────────────────────
+let _unreadComments = {}; // { expId: count }
+let _totalUnread    = 0;
+
+window._incrementCommentBadge = function(expId){
+  _unreadComments[expId] = (_unreadComments[expId]||0) + 1;
+  _totalUnread = Object.values(_unreadComments).reduce((a,b)=>a+b,0);
+  _renderCommentBadge();
+  _updateExpButtonBadge(expId);
+  // In-app toast suave
+  const e = S.expenses.find(x=>x.id===expId);
+  if(e) toast(`💬 Novo comentário em "${e.desc}"`, "info");
+};
+
+function _clearUnread(expId){
+  if(expId){
+    _totalUnread = Math.max(0, _totalUnread - (_unreadComments[expId]||0));
+    delete _unreadComments[expId];
+  } else {
+    _unreadComments = {};
+    _totalUnread    = 0;
+  }
+  _renderCommentBadge();
+  if(expId) _updateExpButtonBadge(expId);
+}
+
+function _renderCommentBadge(){
+  const el = document.getElementById("comment-notif-badge");
+  if(!el) return;
+  if(_totalUnread > 0){
+    el.style.display = "flex";
+    el.textContent   = _totalUnread > 9 ? "9+" : String(_totalUnread);
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function _updateExpButtonBadge(expId){
+  const t = T();
+  document.querySelectorAll(`[data-comment-id="${expId}"]`).forEach(btn=>{
+    const count = _unreadComments[expId] || 0;
+    if(count > 0){
+      btn.style.background   = t.blue + "22";
+      btn.style.borderColor  = t.blue + "66";
+      btn.style.color        = t.blue;
+      btn.innerHTML          = `💬 <span style="background:${t.danger};color:#fff;border-radius:99px;padding:0 5px;font-size:9px;font-weight:700">${count}</span>`;
+    } else {
+      btn.style.background  = t.cardLight;
+      btn.style.borderColor = t.border;
+      btn.style.color       = t.muted;
+      btn.textContent       = "💬";
+    }
+  });
 }
 
 // ── BUSCA DE GASTOS ───────────────────────────────────────────────────

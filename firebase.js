@@ -332,6 +332,64 @@ function startListeners(user) {
   }));
 
   showAppScreen();
+
+  // ── LISTENER GLOBAL DE COMENTÁRIOS ─────────────────────────────────
+  // Monitora comentários novos em TODOS os gastos
+  // e notifica quando é do outro usuário
+  _startCommentNotifListener(user);
+}
+
+function _startCommentNotifListener(user) {
+  // Marca o timestamp de entrada para não notificar comentários antigos
+  const sessionStart = new Date().toISOString();
+
+  // Guarda último timestamp visto por gasto: { expId: isoString }
+  let _lastSeen = {};
+  try { _lastSeen = JSON.parse(localStorage.getItem("comment_lastseen") || "{}"); } catch {}
+
+  // Ouve a coleção de gastos para saber quais existem
+  unsubs.push(onSnapshot(collection(db, "houses", HOUSE_ID, "expenses"), snap => {
+    snap.docs.forEach(expDoc => {
+      const expId = expDoc.id;
+      const expData = expDoc.data();
+
+      // Para cada gasto, escuta sua subcoleção de comentários
+      unsubs.push(onSnapshot(
+        collection(db, "houses", HOUSE_ID, "expenses", expId, "comments"),
+        cSnap => {
+          // Filtra só comentários novos (após entrada na sessão) de outro usuário
+          cSnap.docChanges().forEach(change => {
+            if (change.type !== "added") return;
+            const c = change.doc.data();
+            if (!c._createdAt) return;
+            if (c._createdBy === user.uid) return;          // ignora meus próprios
+            if (c._createdAt <= sessionStart) return;        // ignora histórico
+            const lastKey = _lastSeen[expId] || "";
+            if (c._createdAt <= lastKey) return;             // já visto
+
+            // Atualiza último visto
+            _lastSeen[expId] = c._createdAt;
+            try { localStorage.setItem("comment_lastseen", JSON.stringify(_lastSeen)); } catch {}
+
+            // Incrementa contador de não lidos
+            if (window._incrementCommentBadge) window._incrementCommentBadge(expId);
+
+            // Notificação push
+            const authorName = c._createdByName || "Alguém";
+            const expDesc    = expData.desc || "um gasto";
+            const text       = c.text?.length > 60 ? c.text.slice(0,60)+"…" : (c.text || "💬");
+            if (window._notify) {
+              window._notify(
+                `💬 ${authorName} comentou em ${expDesc}`,
+                text,
+                `comment-${expId}-${change.doc.id}`
+              );
+            }
+          });
+        }
+      ));
+    });
+  }));
 }
 
 // ── FIREBASE HELPERS ──────────────────────────────────────────────────

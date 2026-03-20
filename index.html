@@ -227,6 +227,18 @@
         </div>
       </div>
       <div id="topbar-right">
+        <!-- Sino de comentários não lidos -->
+        <div style="position:relative;flex-shrink:0">
+          <button onclick="openCommentNotifPanel()" id="comment-notif-btn"
+            style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px 6px;line-height:1;display:flex;align-items:center">
+            💬
+          </button>
+          <span id="comment-notif-badge"
+            style="display:none;position:absolute;top:-2px;right:-2px;background:#ff4d6d;color:#fff;
+                   border-radius:99px;font-size:9px;font-weight:800;min-width:16px;height:16px;
+                   align-items:center;justify-content:center;padding:0 4px;pointer-events:none">
+          </span>
+        </div>
         <!-- Salário + Extra + Total -->
         <div id="salary-topbar"></div>
       </div>
