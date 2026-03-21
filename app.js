@@ -1115,7 +1115,9 @@ function renderHome(){
       const todayDay=new Date().getDate();
       const overdue=dueDay>0&&todayDay>dueDay;
       instH+=`<div id="inst-h-${i.id}" class="${overdue?"overdue-pulse":""}" style="min-width:200px;scroll-snap-align:start;flex-shrink:0;background:${t.card};border:1px solid ${overdue?t.danger:t.border};border-radius:18px;padding:18px">
-        ${card?`<div style="margin-bottom:12px">${cardHTML(card,true)}</div>`:""}
+        ${card
+          ?`<div style="margin-bottom:12px">${cardHTML(card,true)}</div>`
+          :`<div style="margin-bottom:12px;width:115px;height:68px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#1a3a1a,#0d2010);border:1px solid #2a5a2a33;display:flex;align-items:center;justify-content:center;position:relative"><img src="money.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55;border-radius:10px"/><span style="position:relative;font-size:10px;font-weight:800;color:#4cde80;letter-spacing:1px;text-shadow:0 1px 4px #000a">DINHEIRO</span></div>`}
         <p style="font-size:14px;font-weight:700;margin-bottom:4px">${i.desc}${overdue?` <span style="font-size:10px;background:${t.danger}22;color:${t.danger};padding:2px 6px;border-radius:6px;font-weight:700">ATRASADA</span>`:""}</p>
         <p style="font-size:20px;font-weight:800;color:${overdue?t.danger:t.warn}">${fmt(i.installmentValue)}<span style="font-size:12px;color:${t.muted}">/mês</span></p>
         ${dueDay?`<p style="font-size:10px;color:${overdue?t.danger:t.muted};margin-top:4px">Vence dia ${dueDay}</p>`:""}
@@ -1178,7 +1180,10 @@ function renderInstList(ctx){
           </div>
           ${card
             ? `<div style="margin-bottom:6px">${cardHTML(card,true)}</div>`
-            : `<span class="badge" style="background:${t.cardLight};color:${t.muted}">💵 Sem cartão</span>`}
+            : `<div style="margin-bottom:6px;width:115px;height:68px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#1a3a1a,#0d2010);border:1px solid #2a5a2a33;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative">
+                <img src="money.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55;border-radius:10px"/>
+                <span style="position:relative;font-size:10px;font-weight:800;color:#4cde80;letter-spacing:1px;text-shadow:0 1px 4px #000a">DINHEIRO</span>
+               </div>`}
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:12px">
           <p style="font-size:22px;font-weight:800;color:${valueColor}">${fmt(i.installmentValue)}</p>
