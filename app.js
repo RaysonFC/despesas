@@ -1120,7 +1120,7 @@ function renderHome(){
       instH+=`<div id="inst-h-${i.id}" class="${overdue?"overdue-pulse":""}" style="min-width:200px;scroll-snap-align:start;flex-shrink:0;background:${t.card};border:1px solid ${overdue?t.danger:t.border};border-radius:18px;padding:18px">
         ${card
           ?`<div style="margin-bottom:12px">${cardHTML(card,true)}</div>`
-          :`<div style="margin-bottom:12px;width:115px;height:68px;border-radius:10px;background:linear-gradient(135deg,#0d4a1a,#1a7a30);border:1px solid #2db84444;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px"><svg width="34" height="22" viewBox="0 0 34 22" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="32" height="20" rx="3" fill="#1a7a30" stroke="#4cde80" stroke-width="1.2"/><rect x="4" y="4" width="26" height="14" rx="2" fill="#0d5a20"/><circle cx="17" cy="11" r="4.5" fill="none" stroke="#4cde80" stroke-width="1.2"/><text x="17" y="14.5" text-anchor="middle" font-size="6" font-weight="bold" fill="#4cde80">$</text></svg><span style="font-size:9px;font-weight:800;color:#4cde80;letter-spacing:1.5px">DINHEIRO</span></div>`}
+          :`<div style="margin-bottom:12px;width:115px;height:68px;border-radius:10px;overflow:hidden;border:1px solid ${t.border};display:flex;align-items:center;justify-content:center;background:${t.cardLight}"><img src="money.png" style="width:80px;height:52px;object-fit:contain;opacity:.9"/></div>`}
         <p style="font-size:14px;font-weight:700;margin-bottom:4px">${i.desc}${overdue?` <span style="font-size:10px;background:${t.danger}22;color:${t.danger};padding:2px 6px;border-radius:6px;font-weight:700">ATRASADA</span>`:""}</p>
         <p style="font-size:20px;font-weight:800;color:${overdue?t.danger:t.warn}">${fmt(i.installmentValue)}<span style="font-size:12px;color:${t.muted}">/mês</span></p>
         ${dueDay?`<p style="font-size:10px;color:${overdue?t.danger:t.muted};margin-top:4px">Vence dia ${dueDay}</p>`:""}
@@ -1187,16 +1187,8 @@ function renderInstList(ctx){
           </div>
           ${card
             ? `<div style="margin-bottom:6px">${cardHTML(card,true)}</div>`
-            : `<div style="margin-bottom:6px;width:115px;height:68px;border-radius:10px;background:linear-gradient(135deg,#0d4a1a,#1a7a30);border:1px solid #2db84444;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px">
-                <svg width="34" height="22" viewBox="0 0 34 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="1" y="1" width="32" height="20" rx="3" fill="#1a7a30" stroke="#4cde80" stroke-width="1.2"/>
-                  <rect x="4" y="4" width="26" height="14" rx="2" fill="#0d5a20"/>
-                  <circle cx="17" cy="11" r="4.5" fill="none" stroke="#4cde80" stroke-width="1.2"/>
-                  <text x="17" y="14.5" text-anchor="middle" font-size="6" font-weight="bold" fill="#4cde80">$</text>
-                  <rect x="1" y="4" width="4" height="3" rx="1" fill="#4cde8033"/>
-                  <rect x="29" y="15" width="4" height="3" rx="1" fill="#4cde8033"/>
-                </svg>
-                <span style="font-size:9px;font-weight:800;color:#4cde80;letter-spacing:1.5px">DINHEIRO</span>
+            : `<div style="margin-bottom:6px;width:115px;height:68px;border-radius:10px;overflow:hidden;border:1px solid ${t.border};display:flex;align-items:center;justify-content:center;background:${t.cardLight}">
+                <img src="money.png" style="width:80px;height:52px;object-fit:contain;opacity:.9"/>
                </div>`}
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:12px">
