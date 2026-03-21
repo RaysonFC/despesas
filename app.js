@@ -1112,12 +1112,15 @@ function renderHome(){
       const card=S.cards.find(c=>c.id==i.cardId),prog=(i.paidInstallments/i.installments)*100;
       // Verifica se está atrasada: tem dueDay e já passou do dia de vencimento esse mês
       const dueDay=i.dueDay||0;
-      const todayDay=new Date().getDate();
-      const overdue=dueDay>0&&todayDay>dueDay;
+      const _now=new Date();
+      const _todayDay=_now.getDate();
+      const _todayM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}`;
+      const _started=!i.startMonth||i.startMonth<=_todayM;
+      const overdue=dueDay>0&&_started&&_todayDay>dueDay;
       instH+=`<div id="inst-h-${i.id}" class="${overdue?"overdue-pulse":""}" style="min-width:200px;scroll-snap-align:start;flex-shrink:0;background:${t.card};border:1px solid ${overdue?t.danger:t.border};border-radius:18px;padding:18px">
         ${card
           ?`<div style="margin-bottom:12px">${cardHTML(card,true)}</div>`
-          :`<div style="margin-bottom:12px;width:115px;height:68px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#1a3a1a,#0d2010);border:1px solid #2a5a2a33;display:flex;align-items:center;justify-content:center;position:relative"><img src="money.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55;border-radius:10px"/><span style="position:relative;font-size:10px;font-weight:800;color:#4cde80;letter-spacing:1px;text-shadow:0 1px 4px #000a">DINHEIRO</span></div>`}
+          :`<div style="margin-bottom:12px;width:115px;height:68px;border-radius:10px;background:linear-gradient(135deg,#0d4a1a,#1a7a30);border:1px solid #2db84444;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px"><svg width="34" height="22" viewBox="0 0 34 22" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="32" height="20" rx="3" fill="#1a7a30" stroke="#4cde80" stroke-width="1.2"/><rect x="4" y="4" width="26" height="14" rx="2" fill="#0d5a20"/><circle cx="17" cy="11" r="4.5" fill="none" stroke="#4cde80" stroke-width="1.2"/><text x="17" y="14.5" text-anchor="middle" font-size="6" font-weight="bold" fill="#4cde80">$</text></svg><span style="font-size:9px;font-weight:800;color:#4cde80;letter-spacing:1.5px">DINHEIRO</span></div>`}
         <p style="font-size:14px;font-weight:700;margin-bottom:4px">${i.desc}${overdue?` <span style="font-size:10px;background:${t.danger}22;color:${t.danger};padding:2px 6px;border-radius:6px;font-weight:700">ATRASADA</span>`:""}</p>
         <p style="font-size:20px;font-weight:800;color:${overdue?t.danger:t.warn}">${fmt(i.installmentValue)}<span style="font-size:12px;color:${t.muted}">/mês</span></p>
         ${dueDay?`<p style="font-size:10px;color:${overdue?t.danger:t.muted};margin-top:4px">Vence dia ${dueDay}</p>`:""}
@@ -1160,12 +1163,16 @@ function renderInstList(ctx){
     </div>`;
   }
 
-  const todayDay = new Date().getDate();
+  const now      = new Date();
+  const todayDay = now.getDate();
+  const todayM   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
   return S.installments.map(i => {
     const card    = S.cards.find(c => c.id == i.cardId);
     const prog    = (i.paidInstallments / i.installments) * 100;
     const done    = i.paidInstallments >= i.installments;
-    const overdue = !done && i.dueDay > 0 && todayDay > i.dueDay;
+    // Só ATRASADA se: não quitada + tem dueDay + mês da dívida já chegou + dia já passou
+    const started = !i.startMonth || i.startMonth <= todayM;
+    const overdue = !done && i.dueDay > 0 && started && todayDay > i.dueDay;
     const valueColor = overdue ? t.danger : t.warn;
     const barColor   = done ? t.accent : overdue ? t.danger : t.warn;
     const cardMb     = ctx === "calendar" ? "margin-bottom:10px;" : "";
@@ -1180,9 +1187,16 @@ function renderInstList(ctx){
           </div>
           ${card
             ? `<div style="margin-bottom:6px">${cardHTML(card,true)}</div>`
-            : `<div style="margin-bottom:6px;width:115px;height:68px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#1a3a1a,#0d2010);border:1px solid #2a5a2a33;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative">
-                <img src="money.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55;border-radius:10px"/>
-                <span style="position:relative;font-size:10px;font-weight:800;color:#4cde80;letter-spacing:1px;text-shadow:0 1px 4px #000a">DINHEIRO</span>
+            : `<div style="margin-bottom:6px;width:115px;height:68px;border-radius:10px;background:linear-gradient(135deg,#0d4a1a,#1a7a30);border:1px solid #2db84444;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px">
+                <svg width="34" height="22" viewBox="0 0 34 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="32" height="20" rx="3" fill="#1a7a30" stroke="#4cde80" stroke-width="1.2"/>
+                  <rect x="4" y="4" width="26" height="14" rx="2" fill="#0d5a20"/>
+                  <circle cx="17" cy="11" r="4.5" fill="none" stroke="#4cde80" stroke-width="1.2"/>
+                  <text x="17" y="14.5" text-anchor="middle" font-size="6" font-weight="bold" fill="#4cde80">$</text>
+                  <rect x="1" y="4" width="4" height="3" rx="1" fill="#4cde8033"/>
+                  <rect x="29" y="15" width="4" height="3" rx="1" fill="#4cde8033"/>
+                </svg>
+                <span style="font-size:9px;font-weight:800;color:#4cde80;letter-spacing:1.5px">DINHEIRO</span>
                </div>`}
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:12px">
