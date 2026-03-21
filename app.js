@@ -62,20 +62,76 @@ const THEMES={
   },
 };
 const BRANDS={
-  "Visa":{color:"#1a1f71",text:"#fff",accent:"#f7a600",label:"VISA"},
-  "Mastercard":{color:"#1d1d1d",text:"#fff",accent:"#eb001b",label:"MC"},
-  "Elo":{color:"#ffcb05",text:"#000",accent:"#00a4e0",label:"ELO"},
-  "Nubank":{color:"#7a1baf",text:"#fff",accent:"#e5d5f5",label:"NU"},
-  "Inter":{color:"#ff7a00",text:"#fff",accent:"#fff",label:"INTER"},
-  "PicPay":{color:"#11c76f",text:"#fff",accent:"#fff",label:"PP"},
-  "Itaú":{color:"#ec7000",text:"#fff",accent:"#003d7d",label:"ITAÚ"},
-  "Bemol Visa":{color:"#3a5bc7",text:"#fff",accent:"#fff",label:"bemol"},
-  "Renner":{color:"#cc0000",text:"#fff",accent:"#fff",label:"RENNER"},
-  "Bradesco":{color:"#c0003c",text:"#fff",accent:"#7b2ff7",label:"BRAD",gradient:"linear-gradient(135deg,#c0003c,#7b2ff7)"},
-  "Neon":{color:"#00bfff",text:"#fff",accent:"#00e5ff",label:"NEON",gradient:"linear-gradient(135deg,#00bfff,#00e5c8)"},
-  "C6 Bank":{color:"#2d2d2d",text:"#fff",accent:"#f5c518",label:"C6"},
-  "XP":{color:"#000",text:"#fff",accent:"#ff6a00",label:"XP"},
-  "Sicredi":{color:"#006600",text:"#fff",accent:"#ffdd00",label:"SICR"},
+  "Visa":{
+    gradient:"linear-gradient(135deg,#1a1f71 0%,#2a3698 60%,#1a1f71 100%)",
+    text:"#fff", accent:"#f7a600", label:"VISA",
+    logo:`<svg viewBox="0 0 60 20" fill="none"><text x="0" y="16" font-family="Arial" font-size="18" font-weight="900" font-style="italic" fill="#f7a600" letter-spacing="-1">VISA</text></svg>`
+  },
+  "Mastercard":{
+    gradient:"linear-gradient(135deg,#1d1d1d 0%,#2e2e2e 100%)",
+    text:"#fff", accent:"#eb001b", label:"MC",
+    logo:`<svg viewBox="0 0 52 32" fill="none"><circle cx="20" cy="16" r="14" fill="#eb001b"/><circle cx="32" cy="16" r="14" fill="#f79e1b" opacity=".9"/><path d="M26 6.3a14 14 0 010 19.4A14 14 0 0126 6.3z" fill="#ff5f00"/></svg>`
+  },
+  "Elo":{
+    gradient:"linear-gradient(135deg,#000 0%,#1a1a1a 100%)",
+    text:"#fff", accent:"#ffcb05", label:"ELO",
+    logo:`<svg viewBox="0 0 48 24" fill="none"><text x="0" y="18" font-family="Arial" font-size="16" font-weight="900" fill="#ffcb05">elo</text></svg>`
+  },
+  "Nubank":{
+    gradient:"linear-gradient(135deg,#7a1baf 0%,#5c1280 100%)",
+    text:"#fff", accent:"#e5d5f5", label:"NU",
+    logo:`<svg viewBox="0 0 36 24" fill="none"><text x="0" y="18" font-family="Arial" font-size="16" font-weight="900" fill="#fff">Nu</text></svg>`
+  },
+  "Inter":{
+    gradient:"linear-gradient(135deg,#ff7a00 0%,#e56000 100%)",
+    text:"#fff", accent:"#fff", label:"INTER",
+    logo:`<svg viewBox="0 0 60 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="13" font-weight="900" fill="#fff" letter-spacing="1">INTER</text></svg>`
+  },
+  "PicPay":{
+    gradient:"linear-gradient(135deg,#11c76f 0%,#0a9e58 100%)",
+    text:"#fff", accent:"#fff", label:"PP",
+    logo:`<svg viewBox="0 0 60 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="12" font-weight="900" fill="#fff" letter-spacing=".5">PicPay</text></svg>`
+  },
+  "Itaú":{
+    gradient:"linear-gradient(135deg,#ec7000 0%,#003d7d 100%)",
+    text:"#fff", accent:"#ffb84d", label:"ITAÚ",
+    logo:`<svg viewBox="0 0 48 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="14" font-weight="900" fill="#fff" letter-spacing="1">itaú</text></svg>`
+  },
+  "Bemol Visa":{
+    gradient:"linear-gradient(135deg,#3a5bc7 0%,#1e3fa0 100%)",
+    text:"#fff", accent:"#fff", label:"bemol",
+    logo:`<svg viewBox="0 0 60 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="13" font-weight="900" fill="#fff">bemol</text></svg>`
+  },
+  "Renner":{
+    gradient:"linear-gradient(135deg,#cc0000 0%,#990000 100%)",
+    text:"#fff", accent:"#fff", label:"RENNER",
+    logo:`<svg viewBox="0 0 72 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="12" font-weight="900" fill="#fff" letter-spacing="1">RENNER</text></svg>`
+  },
+  "Bradesco":{
+    gradient:"linear-gradient(135deg,#c0003c 0%,#7b2ff7 100%)",
+    text:"#fff", accent:"#ffb3cc", label:"BRAD",
+    logo:`<svg viewBox="0 0 64 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="12" font-weight="900" fill="#fff" letter-spacing=".5">Bradesco</text></svg>`
+  },
+  "Neon":{
+    gradient:"linear-gradient(135deg,#00bfff 0%,#00e5c8 100%)",
+    text:"#fff", accent:"#fff", label:"NEON",
+    logo:`<svg viewBox="0 0 52 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="14" font-weight="900" fill="#fff" letter-spacing="2">NEON</text></svg>`
+  },
+  "C6 Bank":{
+    gradient:"linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%)",
+    text:"#fff", accent:"#f5c518", label:"C6",
+    logo:`<svg viewBox="0 0 36 24" fill="none"><text x="0" y="18" font-family="Arial" font-size="18" font-weight="900" fill="#f5c518">C6</text></svg>`
+  },
+  "XP":{
+    gradient:"linear-gradient(135deg,#000 0%,#1a1a1a 100%)",
+    text:"#fff", accent:"#ff6a00", label:"XP",
+    logo:`<svg viewBox="0 0 36 24" fill="none"><text x="0" y="18" font-family="Arial" font-size="18" font-weight="900" fill="#ff6a00">XP</text></svg>`
+  },
+  "Sicredi":{
+    gradient:"linear-gradient(135deg,#006600 0%,#004d00 100%)",
+    text:"#fff", accent:"#ffdd00", label:"SICR",
+    logo:`<svg viewBox="0 0 60 20" fill="none"><text x="0" y="15" font-family="Arial" font-size="12" font-weight="900" fill="#ffdd00" letter-spacing="1">SICREDI</text></svg>`
+  },
 };
 const CATS={"Alimentação":"🍔","Transporte":"🚗","Saúde":"💊","Lazer":"🎮","Casa":"🏠","Educação":"📚","Roupas":"👕","Outros":"💸"};
 const GOAL_EMOJIS=["🏖️","✈️","💻","📱","🚗","🏠","💍","🎓","🏋️","🎮","📷","🎸","🌍","👶","💰","🎯"];
@@ -158,17 +214,60 @@ function confirm2(opts){
 
 // ── CARD HTML ─────────────────────────────────────────────────────────
 function cardHTML(card,small){
-  const b=BRANDS[card.brand]||BRANDS["Visa"];
-  const w=small?115:280,h=small?68:158,r=small?10:18;
-  const bg=b.gradient||`linear-gradient(135deg,${b.color},${b.color}bb)`;
-  return`<div style="width:${w}px;height:${h}px;border-radius:${r}px;flex-shrink:0;background:${bg};position:relative;overflow:hidden;border:1px solid ${b.accent}33;box-shadow:0 8px 28px ${b.color}44">
-    <div style="position:absolute;top:-18px;right:-18px;width:80px;height:80px;border-radius:50%;background:${b.accent}22"></div>
-    <div style="padding:${small?"8px 10px":"18px 20px"};height:100%;display:flex;flex-direction:column;justify-content:space-between;color:${b.text}">
+  const b = BRANDS[card.brand] || BRANDS["Visa"];
+  const w = small ? 115 : 280;
+  const h = small ? 68  : 158;
+  const r = small ? 10  : 18;
+
+  // Chip EMV (só no grande)
+  const chip = !small ? `<svg width="28" height="22" viewBox="0 0 28 22" fill="none">
+    <rect width="28" height="22" rx="4" fill="#d4a836"/>
+    <rect x="9" y="0" width="10" height="22" fill="#c49a2a" opacity=".6"/>
+    <rect y="7" width="28" height="8" fill="#c49a2a" opacity=".6"/>
+    <rect x="3" y="3" width="22" height="16" rx="2" fill="none" stroke="#b8902a" stroke-width=".8"/>
+  </svg>` : "";
+
+  // Rede de contato sem fio (só no grande)
+  const wifi = !small ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="opacity:.7">
+    <path d="M12 19h.01" stroke="${b.text}" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M8.5 16.5a5 5 0 017 0" stroke="${b.text}" stroke-width="2" stroke-linecap="round"/>
+    <path d="M5 13a9 9 0 0114 0" stroke="${b.text}" stroke-width="2" stroke-linecap="round"/>
+  </svg>` : "";
+
+  return `<div style="
+    width:${w}px;height:${h}px;border-radius:${r}px;flex-shrink:0;
+    background:${b.gradient};
+    position:relative;overflow:hidden;
+    box-shadow:0 4px 16px #00000033;
+    font-family:system-ui,sans-serif;
+  ">
+    <!-- Círculos decorativos sutis -->
+    <div style="position:absolute;top:-20px;right:-20px;width:${small?70:130}px;height:${small?70:130}px;border-radius:50%;background:${b.accent}15;pointer-events:none"></div>
+    <div style="position:absolute;bottom:-30px;left:-10px;width:${small?60:110}px;height:${small?60:110}px;border-radius:50%;background:#ffffff08;pointer-events:none"></div>
+
+    <div style="padding:${small?"8px 10px":"16px 20px"};height:100%;display:flex;flex-direction:column;justify-content:space-between;color:${b.text}">
+
+      <!-- Topo: nome + logo -->
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <span style="font-size:${small?9:11}px;opacity:.75;font-weight:600">${card.name}</span>
-        <span style="font-size:${small?12:22}px;font-weight:900;color:${b.accent};letter-spacing:-1px">${b.label}</span>
+        <span style="font-size:${small?8:10}px;opacity:.8;font-weight:600;letter-spacing:.5px;text-transform:uppercase">${card.name}</span>
+        ${small
+          ? `<span style="font-size:11px;font-weight:900;color:${b.accent};letter-spacing:-0.5px;opacity:.95">${b.label}</span>`
+          : `<div style="width:52px;height:32px;display:flex;align-items:center;justify-content:flex-end">${b.logo||`<span style="font-size:20px;font-weight:900;color:${b.accent}">${b.label}</span>`}</div>`
+        }
       </div>
-      ${!small?`<div><p style="font-size:9px;opacity:.5;margin-bottom:3px">Limite disponível</p><p style="font-size:17px;font-weight:700">${fmt(card.limit)}</p></div>`:""}
+
+      ${!small ? `
+      <!-- Meio: chip + sem fio -->
+      <div style="display:flex;align-items:center;gap:10px">
+        ${chip}
+        ${wifi}
+      </div>
+
+      <!-- Rodapé: limite -->
+      <div>
+        <p style="font-size:8px;opacity:.5;margin-bottom:3px;letter-spacing:.8px;text-transform:uppercase">Limite disponível</p>
+        <p style="font-size:18px;font-weight:700;letter-spacing:-.5px">${fmt(card.limit)}</p>
+      </div>` : ""}
     </div>
   </div>`;
 }
