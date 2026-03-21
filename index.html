@@ -586,8 +586,9 @@
 
 
 <!-- ══ PIN LOCK OVERLAY ══════════════════════════════════════════════ -->
-<div id="pin-overlay" style="display:none;position:fixed;inset:0;z-index:9990;background:#080810;flex-direction:column;align-items:center;justify-content:center;padding:32px;">
-  <div style="text-align:center;max-width:320px;width:100%">
+<div id="pin-overlay" style="display:none;position:fixed;inset:0;z-index:9990;background:#080810;flex-direction:column;align-items:center;justify-content:center;padding:32px;"
+  onclick="event.stopPropagation();event.preventDefault()">
+  <div style="text-align:center;max-width:320px;width:100%" onclick="event.stopPropagation()">
     <div id="pin-avatar" style="font-size:44px;margin-bottom:10px"></div>
     <h2 id="pin-title" style="font-size:20px;font-weight:800;color:#e8e8f4;margin-bottom:6px">App bloqueado</h2>
     <p id="pin-subtitle" style="font-size:13px;color:#5a5a72;margin-bottom:28px">Digite seu PIN para continuar</p>

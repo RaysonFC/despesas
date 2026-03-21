@@ -3120,6 +3120,7 @@ let _bgTime        = null;
 let _pinSetupStep  = 1;   // 1 = digitar, 2 = confirmar
 let _pinSetupFirst = "";
 let _pinSetupBuffer= "";
+let _bioInProgress = false; // evita re-trigger da biometria
 
 // ── Utilitários ────────────────────────────────────────────────────────
 function _pinKey(uid){ return "pin_" + (uid || window._currentUser?.uid || "user"); }
@@ -3202,10 +3203,13 @@ async function registerBiometric(){
 // Verifica biometria para desbloquear
 async function unlockWithBiometric(){
   if(!_bioSupported() || !hasBioSet()) return false;
+  if(_bioInProgress) return false;          // evita duplo disparo
+  _bioInProgress = true;
+
   const credId = localStorage.getItem(_bioKey());
   try {
     const challenge = crypto.getRandomValues(new Uint8Array(32));
-    await navigator.credentials.get({
+    const result = await navigator.credentials.get({
       publicKey: {
         challenge,
         allowCredentials: [{
@@ -3218,11 +3222,14 @@ async function unlockWithBiometric(){
         rpId: location.hostname,
       }
     });
-    // Se chegou aqui, biometria aprovada
-    hidePinOverlay();
+    // Só desbloqueia se realmente recebeu uma credencial válida
+    if(!result) { _bioInProgress = false; return false; }
+    _bioInProgress = false;
+    hidePinOverlay(_UNLOCK_TOKEN);
     toast("✅ Desbloqueado!");
     return true;
   } catch(e){
+    _bioInProgress = false;
     console.warn("WebAuthn get error:", e);
     if(e.name !== "NotAllowedError"){
       toast("Biometria falhou. Use o PIN.","err");
@@ -3273,15 +3280,20 @@ function showPinOverlay(){
   }
 }
 
-function hidePinOverlay(){
+const _UNLOCK_TOKEN = Symbol("unlock");  // token privado — ninguém de fora consegue criar
+
+function hidePinOverlay(token){
+  // Só aceita chamadas com o token correto — evita desbloqueio acidental por clique
+  if(token !== _UNLOCK_TOKEN) return;
   const ov = document.getElementById("pin-overlay");
   if(ov) ov.classList.remove("show");
-  _pinBuffer = "";
-  _bgTime    = null;
+  _pinBuffer     = "";
+  _bgTime        = null;
+  _bioInProgress = false;
 }
 
 function pinKey(v){
-  if(v === "logout"){ doLogout(); hidePinOverlay(); return; }
+  if(v === "logout"){ doLogout(); hidePinOverlay(_UNLOCK_TOKEN); return; }
   if(v === "del"){ _pinBuffer = _pinBuffer.slice(0,-1); _updatePinDots("pin-dot", _pinBuffer); return; }
   if(_pinBuffer.length >= 4) return;
   _pinBuffer += String(v);
@@ -3291,7 +3303,7 @@ function pinKey(v){
 
 function _verifyPin(){
   if(_hashPin(_pinBuffer) === getPinHash()){
-    hidePinOverlay();
+    hidePinOverlay(_UNLOCK_TOKEN);
     toast("✅ PIN correto!");
   } else {
     _pinAttempts++;
@@ -3301,7 +3313,7 @@ function _verifyPin(){
     _updatePinDots("pin-dot", "");
     if(_pinAttempts >= PIN_MAX_ATTEMPTS){
       toast("🔒 3 tentativas erradas — saindo!", "err");
-      setTimeout(()=>{ doLogout(); hidePinOverlay(); }, 1200);
+      setTimeout(()=>{ doLogout(); hidePinOverlay(_UNLOCK_TOKEN); }, 1200);
     } else {
       const el = document.getElementById("pin-error");
       el.textContent = `PIN incorreto. ${rem} tentativa${rem>1?"s":""} restante${rem>1?"s":""}.`;
