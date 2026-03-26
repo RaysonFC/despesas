@@ -1120,7 +1120,8 @@ function renderStatus(){
   // ── CARD NORMAL ───────────────────────────────────────────────────────
   const thisMonthExp=S.expenses.filter(e=>e.date?.startsWith(cm));
   const thisMonthInst=S.installments.filter(i=>{
-    if(i.paidInstallments>=i.installments)return false;
+    if(i.paidInstallments>=i.installments)return false; // quitada
+    if(i.lastPaidMonth===cm)return false;               // parcela deste mês já paga
     if(!i.startMonth)return true;
     return i.startMonth<=cm;
   });
@@ -1215,7 +1216,8 @@ function renderHome(){
       const _todayDay=_now.getDate();
       const _todayM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}`;
       const _started=!i.startMonth||i.startMonth<=_todayM;
-      const overdue=dueDay>0&&_started&&_todayDay>dueDay;
+      const overdue=dueDay>0&&_started&&_todayDay>dueDay&&i.lastPaidMonth!==cm;
+      const paidThisMonth=i.lastPaidMonth===cm;
       instH+=`<div id="inst-h-${i.id}" class="${overdue?"overdue-pulse":""}" style="min-width:200px;scroll-snap-align:start;flex-shrink:0;background:${t.card};border:1px solid ${overdue?t.danger:t.border};border-radius:18px;padding:18px">
         ${card
           ?`<div style="margin-bottom:12px">${cardHTML(card,true)}</div>`
@@ -1225,7 +1227,10 @@ function renderHome(){
         ${dueDay?`<p style="font-size:10px;color:${overdue?t.danger:t.muted};margin-top:4px">Vence dia ${dueDay}</p>`:""}
         <p style="font-size:10px;color:${t.muted};margin:6px 0 10px">${i.paidInstallments}/${i.installments} pagas · ${fmt((i.installments-i.paidInstallments)*i.installmentValue)} restante</p>
         <div class="prog-bg" style="height:4px;margin-bottom:12px"><div class="prog-fill" style="width:${prog}%;background:${overdue?t.danger:t.accent}"></div></div>
-        <button onclick="payInst('${i.id}','h')" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:8px;color:${t.accent};font-size:11px;font-weight:700;width:100%">✓ Marcar parcela paga</button>
+        ${paidThisMonth
+          ? `<div style="background:${t.accent}22;border:1px solid ${t.accent}55;border-radius:10px;padding:8px;color:${t.accent};font-size:12px;font-weight:800;width:100%;text-align:center">✅ Parcela paga este mês!</div>`
+          : `<button onclick="payInst('${i.id}','h')" style="background:${t.accent}18;border:1px solid ${t.accent}44;border-radius:10px;padding:8px;color:${t.accent};font-size:11px;font-weight:700;width:100%">✓ Marcar parcela paga</button>`
+        }
       </div>`;
     });
     // Parcelas futuras (próximo mês+)
@@ -2030,7 +2035,9 @@ function payInst(id,ctx){
   const i=S.installments.find(x=>x.id===id);if(!i)return;
   const newPaid=Math.min(i.paidInstallments+1,i.installments);
   const done=newPaid>=i.installments;
-  window.fbUpdate("installments",id,{paidInstallments:newPaid}).then(()=>{
+  const cm=curM();
+  // Grava lastPaidMonth para saber que a parcela deste mês já foi paga
+  window.fbUpdate("installments",id,{paidInstallments:newPaid,lastPaidMonth:cm}).then(()=>{
     if(done)toast(`🎉 ${i.desc} quitado!`);else toast(`✅ Parcela ${newPaid}/${i.installments} paga!`);
     if(done){
       const el=document.getElementById(ctx==="h"?`inst-h-${id}`:`inst-${id}`);
